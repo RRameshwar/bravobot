@@ -1,17 +1,20 @@
-#include <Servo.h>
+#include <Adafruit_TiCoServo.h>
 
-Servo leftMotors;
-Servo rightMotors;
+Adafruit_TiCoServo leftMotors;
+Adafruit_TiCoServo rightMotors;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   
-  leftMotors.attach(11);
-  rightMotors.attach(10);
+  leftMotors.attach(12);
+  rightMotors.attach(13);
+  leftMotors.write(90);
+  rightMotors.write(90);
+  delay(5000);
 }
 
-void loop() {
+void loop() {  
   // put your main code here, to run repeatedly:
   Serial.println("Motor test loop start.");
   Serial.println("Left motor speed sweep.");

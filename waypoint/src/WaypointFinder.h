@@ -16,18 +16,24 @@ public:
 
 	void init(int argc, char* argv[]);
 
-	void FindWaypoint(const std_msgs::Float64MultiArray::ConstPtr &msg);
-	void WaypointList();
-
-	void IMUCallback(const geometry_msgs::Vector3Stamped::ConstPtr &msg);
-	void GPSCallback(const sensor_msgs::NavSatFix &msg);
 	void InputCallback(const std_msgs::Float64MultiArray::ConstPtr &msg);
+	void FindWaypoint(const std_msgs::Float64MultiArray::ConstPtr &msg);
+
+	void GPSCallback(const sensor_msgs::NavSatFix &msg);
+	void IMUCallback(const geometry_msgs::Vector3Stamped::ConstPtr &msg);
+
+	int Dist2WP(float, float, int);
+	float FindGPSHeading(float, float, int);
+	float FindNewHeading(float, float, float, double, int);
 
 
 public:	
 	ros::NodeHandle nh;
 	ros::Subscriber subGPS;
+	ros::Subscriber subWPlist;
+
 	ros::Subscriber subIMU;
+
 	ros::Subscriber subInput;
 	ros::Subscriber subWPfinder;
 
@@ -38,35 +44,52 @@ public:
 	int count;
 	int counter;
 	int i;
+
+	float R;
 	
 	//current state
 	float currentLat;
 	float currentLong;
+	float wpLat;
+	float wpLong;
+	float dLat;
+	float dLong;
+	float a;
+	float calc;
+	float arcDist;
 
 	float headingx;
 	float headingy;
 	float headingz;
 
-	float waypointx;
-	float waypointy;
-	float setpointx;
-	float setpointy;
-	float dremainx;
-	float dremainy;
+	float waypointLat;
+	float waypointLong;
+	float dremainLat;
+	float dremainLong;
+
+	float newHeading;
+	float GPSHeading;
+	float compassHeading;
+
+	double IMUHeading;
+
+	std_msgs::Float64 dCompassHeading;
+	std_msgs::Float64 dHeading;
 
 	int arbArray [7];
-	int waypoints [7];
+
+	float waypointLats [5]; // The current queue of waypoint latitudes
+	float waypointLongs [5]; // The current queue of waypoint longitudes
 
 	std_msgs::String pubdirection;
 	std::stringstream direction;
-	// std::stringstream s;
 
+	std_msgs::Float64 pubimu;
+	std_msgs::Float64 pubheading;
 
 	int maxturnrad;
 
 	ros::Publisher pubvel;
-	ros::Publisher pubwp;
-	// ros::Publisher goto;
-
+	ros::Publisher pubIMU;
+	ros::Publisher pubHeading;
 };
-

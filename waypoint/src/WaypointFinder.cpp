@@ -1,132 +1,211 @@
+// Olin College Fundamentals of Robotics 2016
+// Last edited by Lydia Z. 12/7/16
+// Need to account for waypoints within 3 m of each other.
+
 #include "WaypointFinder.h"
 #include <cmath>
 
+/*######################################## HEADING AND DISTANCE CALCULATIONS ##############################################*/
 
-void WaypointFinder::FindWaypoint(const std_msgs::Float64MultiArray::ConstPtr &msg){
+int WaypointFinder::Dist2WP(float passedLat, float passedLong, int passedwp){
+	// for ( i=0; i <= 4; i++ ) {
+	// 	// For waypoint i in list waypoints, check if waypoint exists (default value is (0,0))
+	// 	// Once a valid waypoint is found, set currwp (currentwaypoint) to waypoint i.
+	// 	if ((waypointLats[i] == 0.00000) && (waypointLongs[i] == 0.00000)){
+	// 		//Nothing happens
+	// 	}
+	// 	else{ //If waypoint i in waypoints exists, make it our current waypoint.
+	// 		// std::cout << "Waypoint # set to: " << i << std::endl;
+	// 		currwp = i;
+	// 		break;
+	// 	}
+	// }
+	currwp = passedwp;
+		
+	std::cout << "Current waypoint is waypoint " << currwp << " at (" << waypointLats[currwp] << "N, " << waypointLongs[currwp] << "W)" << std::endl;
 
-	setpointx = msg->data[0];
-	setpointy = msg->data[1];
+	R = 6371.00000; //Radius of the earth in km
 
-	if(setpointx != NULL){
+	currentLat = passedLat;
+	currentLong = passedLong;
 
-		// if(counter <= 1){
-		// 	// //Generating test waypoints
-		// 	// //Change to reasonable values.
-		// 	// waypointx = setpointx + 10;
-		// 	// waypointy = setpointy + 10;
+	wpLat = waypointLats[currwp];
+	wpLong = waypointLongs[currwp];
 
-		// 	for ( i=0; i <= 6; i++ ) {
-		// 		//If waypoint has been reached, reset waypoint arbiter array to zero in preparation for finding the next waypoint.
-		// 		arbArray [i] = 0;
-		// 	}
-		// }
+    dLat = currentLat - wpLat;
+    dLong = currentLong - wpLong;
 
-			// counter++;
+	//Haversine formula- calculate arc distance between two GPS points
+	a = std::pow(std::sin(dLat/2.00000),2.00000) + std::cos(wpLat) * std::cos(currentLat) * std::pow(sin(dLong/2.00000),2.00000);
+	calc = 2 * (std::atan2(std::sqrt(a), std::sqrt(1.00000-a)));
+	arcDist = R * calc;
 
-		for ( i=0; i < 7; i++ ) {
-			arbArray [i] = 0;
+	std::cout << "Distance remaining: " << arcDist << " m" << std::endl;
+
+	std::cout << "Current GPS: (" << currentLat << "N, " << currentLong << "W)" << std::endl;
+	// std::cout << "Waypoint GPS: (" << wpLat << "N, " << wpLong << "W)" << std::endl;
+
+	if (arcDist <= 3.00000){
+		waypointFound == false;
+
+		if (counter <= 1){
+			std::cout << std::endl << "Waypoint " << currwp << " found. I'm here!" << std::endl << std::endl;
+
+			waypointLats[currwp] == 0.00000;
+			waypointLongs[currwp] == 0.00000;
+			
+			currwp = currwp + 1;
 		}
+		counter = counter + 1;
+	}
+	else{
+		counter = 1;
+	}
 
-		//Find remaining distance to waypoint
-		dremainx = setpointx - waypointx;
-		dremainy = setpointy - waypointy;
+	return currwp;
+}
 
-		if(std::atan(std::abs(dremainy/dremainx)) <= std::tan(0.523598776)){ //atan(|y/x|) <= tan(30 deg)
+float WaypointFinder::FindGPSHeading(float passedLat, float passedLong, int passWP){
+	currentLat = passedLat;
+	currentLong = passedLong;
+	passWP = currwp;
+
+	wpLat = waypointLats[currwp];
+	wpLong = waypointLongs[currwp];
+
+	//Find remaining distance to waypoint
+	dremainLat = currentLat - wpLat;
+	dremainLong = currentLong - wpLong;
+
+	GPSHeading = std::atan(std::abs(dremainLong/dremainLat));
+	// std::cout << (GPSHeading * 57.2957795) << " degrees to waypoint" << std::endl;
+	return GPSHeading;
+}
+
+float WaypointFinder::FindNewHeading(float passedLat, float passedLong, float passedGPSHeading, double passedIMUHeading, int passWP){
+	std::cout << std::setprecision(7); // show 16 digits
+
+	currentLat = passedLat;
+	currentLong = passedLong;
+	currwp = passWP;
+	GPSHeading = passedGPSHeading;
+	IMUHeading = passedIMUHeading - 14.00000; // Account for magnetic declination
+
+	wpLat = waypointLats[currwp];
+	wpLong = waypointLongs[currwp];
+
+	dremainLat = wpLat - currentLat;
+	dremainLong = wpLong - currentLong;
+
+	try{
+		newHeading = (GPSHeading + IMUHeading)/2.00000;
+		// newHeading = GPSHeading;
+
+		if(newHeading <= std::tan(0.523598776)){ //atan(|y/x|) <= tan(30 deg)
 			//If the heading angle to the next waypoint is less than 30 deg, hard turn left/right
-			if(dremainx == std::abs(dremainx)){ //remaining x is positive, must turn right
+			if(dremainLat == std::abs(dremainLat)){ //remaining x is positive, must turn right
 				direction << "Hard right";
-
-				arbArray[6] = 1;
-				arbArray[5] = 0.5;
 			}
 			else{ //remaining x is negative, must turn left
 				direction << "Hard left";
-
-				arbArray[0] = 1;
-				arbArray[1] = 0.5;
 			}
 		}
-		else if(std::atan(std::abs(dremainy/dremainx)) <= std::tan(1.04719755)){ //atan(|y/x|) <= tan(60 deg) and atan(|y/x|) >= tan(30 deg)
+		else if(newHeading <= std::tan(1.04719755)){ //atan(|y/x|) <= tan(60 deg) and atan(|y/x|) >= tan(30 deg)
 			//If the heading angle is less than 60 deg but greater than 30 deg, normal turn left/right.
-			if(dremainx == std::abs(dremainx)){ //remaining x is positive, must turn right
+			if(dremainLat == std::abs(dremainLat)){ //remaining x is positive, must turn right
 				direction << "Mid right";
-
-				arbArray[4] = 0.5;
-				arbArray[5] = 1;
-				arbArray[6] = 0.5;
 			}
 			else{ //remaining x is negative, must turn left
 				direction << "Mid left";
-				arbArray[0] = 0.5;
-				arbArray[1] = 1;
-				arbArray[2] = 0.5;
 			}
 		}
-		else if(std::atan(std::abs(dremainy/dremainx)) <= std::tan(1.48352986)){ //atan(|y/x|) <= tan(85 deg) and atan(|y/x|) >= tan(60 deg)
+		else if(newHeading <= std::tan(1.48352986)){ //atan(|y/x|) <= tan(85 deg) and atan(|y/x|) >= tan(60 deg)
 			//If the heading angle is less than 85 deg but greater than 60 deg, slight turn left/right.
-			if(dremainx == std::abs(dremainx)){ //remaining x is positive, must turn right
+			if(dremainLat == std::abs(dremainLat)){ //remaining x is positive, must turn right
 				direction << "Slight right";
-				arbArray[3] = 0.5;
-				arbArray[4] = 1;
-				arbArray[5] = 0.5;
 			}
 			else{ //remaining x is negative, must turn left
 				direction << "Slight left";
-				arbArray[1] = 0.5;
-				arbArray[2] = 1;
-				arbArray[3] = 0.5;
 			}
 		}
 		else{ //If the waypoint is within a cone +-10 degrees from straight, the rover will drive straight ahead.
 			direction << "Straight ahead";
-			arbArray[2] = 0.5;
-			arbArray[3] = 1;
-			arbArray[4] = 0.5;
 		}
-		std::cout << direction << std::endl;
-	}
+		std::cout << direction.str() << "! Angle is " << newHeading << std::endl << std::endl;
+		// std::cout << 
 
+		return newHeading;
+	}
+	catch (...){
+		std::cout << "Error in FindNewHeading" << std::endl;
+	}
 }
+
+
+/*######################################## CALLBACK FUNCTIONS ##############################################*/
+
 
 void WaypointFinder::InputCallback(const std_msgs::Float64MultiArray::ConstPtr &msg){
 	if(hasInput == false){
 	 	hasInput = true;
 	}
 
-	waypointx = msg->data[0];
-	waypointy = msg->data[1];
-}
+	waypointLat = msg->data[0];
+	waypointLong = msg->data[1];
 
-void WaypointFinder::GPSCallback(const sensor_msgs::NavSatFix &msg){
-	currentLat = msg.latitude;
-	currentLong = msg.longitude;
+	std::cout << "Input exists" << std::endl;
 }
 
 void WaypointFinder::IMUCallback(const geometry_msgs::Vector3Stamped::ConstPtr &msg){
 	headingx = msg->vector.x;
 	headingy = msg->vector.y;
 	headingz = msg->vector.z;
+
+	compassHeading = (std::atan2(headingy,headingx) * 180.00000) / 3.14159265359;
+  
+	// Normalize to 0-360
+	if (compassHeading < 0)
+	{
+	compassHeading = 360.00000 + compassHeading;
+	}
+
+	dCompassHeading.data = static_cast<double>(compassHeading);
+	pubimu = dCompassHeading;
+	// std::cout << "Current heading: " << compassHeading << std::endl;
 }
 
-void WaypointFinder::WaypointList(){
-	//COMPLETELY UNTESTED, FIRST DRAFT IN PROGRESS
-	int waypoints [5] = { (0,0),(0,0),(0,0),(0,0),(0,0) }; // The current queue of waypoints
-
+void WaypointFinder::GPSCallback(const sensor_msgs::NavSatFix &msg){
+	subIMU = nh.subscribe("/imu/mag", 10, &WaypointFinder::IMUCallback, this);
 	if (waypointFound == true){ //If a waypoint was found...
-		waypoints[currwp] = (0,0); //Set the current waypoint to default value, clearing it off the list.
-		counter = 1; //Reset previous heading weights in arbiter array (arbArray) to 0
+		std::cout << "Next WP" << std::endl;
+		waypointLats[currwp] = 0.00000; //Set the current waypoint latitude and longitude to default values, clearing them off the list.
+		waypointLongs[currwp] = 0.00000;
+		// counter = 1; //Reset previous heading weights in arbiter array (arbArray) to 0
 		waypointFound = false;
 	}
 	else{
-		for ( i=0; i <= 4; i++ ) {
-			// For waypoint i in list waypoints, check if waypoint exists (default value is (0,0))
-			// Once a valid waypoint is found, set currwp (currentwaypoint) to waypoint i.
-			if (waypoints[i] != (0,0)){ //If waypoint i in waypoints exists, make it our current waypoint.
-				currwp = i;
-			}
-		}
+
+		currentLat = msg.latitude;
+		currentLong = msg.longitude;
+
+		IMUHeading = static_cast<double>(pubimu.data);
+
+		currwp = WaypointFinder::Dist2WP(currentLat, currentLong, currwp);
+		GPSHeading = WaypointFinder::FindGPSHeading(currentLat, currentLong, currwp);
+		// std::cout << "GPS Heading: " << GPSHeading << std::endl;
+		newHeading = WaypointFinder::FindNewHeading(currentLat, currentLong, GPSHeading, IMUHeading, currwp);
+
+		dHeading.data = static_cast<double>(newHeading);
+		pubheading = dHeading;
+
 	}
+	direction.str(std::string());
+	direction.clear();
 }
+
+
+/*######################################## INIT FUNCTION AND MAIN LOOP ##############################################*/
+
 
 void WaypointFinder::init(int argc, char* argv[]){
 	//Initialize input flag
@@ -134,60 +213,56 @@ void WaypointFinder::init(int argc, char* argv[]){
 	waypointFound = false;
 	maxturnrad = 3;  // meters
 	counter = 1;
-	waypointx = 0;
-	waypointy = 0;
+	wpLat = 0;
+	wpLong = 0;
 
-	int arbArray [7] = { 0,0,0,0,0,0,0 }; 
+	currwp = 0;
 
-	subInput = nh.subscribe("/wplist", 10, &WaypointFinder::InputCallback, this);
-	// subInput = nh.subscribe("/goto", 10, &WaypointFinder::InputCallback, this);
+    std::cout << std::setprecision(7); // show 16 digits
+
+	// int arbArray [7] = { 0,0,0,0,0,0,0 };
+
+	waypointLats[0] = 42.29320;
+	waypointLats[1] = 42.29338;
+	waypointLats[2] = 20.00000;
+	waypointLats[3] = 20.00000;
+	waypointLats[4] = 20.00000;
+	
+	waypointLongs[0] = -71.26398;
+	waypointLongs[1] = -71.26366;
+	waypointLongs[2] = 0.00000;
+	waypointLongs[3] = 0.00000;
+	waypointLongs[4] = 20.00000;
+
+	// subInput = nh.subscribe("/wplist", 10, &WaypointFinder::InputCallback, this); //You cannot run subInput and subWPfinder at the same time.
+
 	subGPS = nh.subscribe("/fix", 10, &WaypointFinder::GPSCallback, this);
-	subIMU = nh.subscribe("/imu/mag", 10, &WaypointFinder::IMUCallback, this);
 
-	subWPfinder = nh.subscribe("/wplist", 10, &WaypointFinder::FindWaypoint, this);
-	// subWPfinder = nh.subscribe("/goto", 10, &WaypointFinder::FindWaypoint, this);
+	// subIMU = nh.subscribe("/imu/mag", 10, &WaypointFinder::IMUCallback, this);
 
 	pubvel = nh.advertise<std_msgs::String>("velocity", 1000);
-	pubwp = nh.advertise<std_msgs::Float64MultiArray>("wplist", 1000);
+	pubIMU = nh.advertise<std_msgs::Float64>("imu_data", 1000);
+	pubHeading = nh.advertise<std_msgs::Float64>("heading", 1000);
 
 	ros::Rate loop_rate(10);
 
-	int count = 0;
+	// int count = 0;
 	while (ros::ok())
   	{
-
-	    // std_msgs::Float64MultiArray now;
-
-	    // now.data.push_back(currentLat);
-	    // now.data.push_back(currentLong);
-	    // now.data.push_back(headingx);
-	    // now.data.push_back(headingy);
-	    // now.data.push_back(headingz);
-	    // now.data.push_back(waypointx);
-	    // now.data.push_back(waypointy);
-
-  		// FindWaypoint(const std_msgs::Float64MultiArray::ConstPtr &msg)
-
-
-	    /*now[1] = currentLong;
-	    now[2] = headingx;
-	    now[3] = headingy;
-	    now[4] = headingz;
-	    now[5] = waypointx;
-	    now[6] = waypointy;*/
   		// direction << "Slight left";
-
+  		// wp_pub.publish("");
   		pubdirection.data = direction.str();
 	    pubvel.publish(pubdirection);
+
+	    pubIMU.publish(pubimu);
 
 	    ros::spinOnce();
 
 	    loop_rate.sleep();
 
-	    ++count;
-	    std::cout << count << "   " << direction.str() << "Hoi" << std::endl;
-	    // std::cout << count << "   " << pubdirection.data.c_str() << "Hoi" << std::endl;
+	    // ++count;
+	    // std::cout << direction.str() << std::endl;
+	    // std::cout << pubimu << std::endl;
 	}
 
 }
-
