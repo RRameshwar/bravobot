@@ -1,38 +1,54 @@
 #include <ArduinoHardware.h>
-#include <Servo.h>
+
+#include <Adafruit_TiCoServo.h>
 /* rover communication code
 Uses Rosserial to communicate with a computer running ros
 */
 
 #include "rover.h" //my library for controlling the rover
+#include "helper_functions.h" // header file for helper functions
 
+// Include ros library and messages
 #include <ros.h>
+#include <std_msgs/Bool.h>
 #include <std_msgs/Int16MultiArray.h>
 #include <std_msgs/Int16.h>
 #include <geometry_msgs/Twist.h>
 
+//arduino pin config
+const int lservo_pin=3;
+const int rservo_pin=4;
+const int IR_1_pin = A1;
+const int IR_2_pin = A2;
+const int kill_pin = 2;
+const int led_1 = 13;
+
+// ROS setup
 ros::NodeHandle nh;
 
 std_msgs::Int16MultiArray ir;
 ros::Publisher ir_sensors("ir_sensors", &ir);
+std_msgs::Bool is_estopped;
+ros::Publisher estop_pub("estop", &is_estopped);
+std_msgs::Bool is_irstopped;
+ros::Publisher irstop_pub("ir_stop", &is_irstopped); 
 
-float vel;
-float turn;
 int flash_rate=50;
-bool got_msg = false;
 
-Rover rover; // initialize rover with motor pins
-Servo lservo;
-Servo rservo;
-int cmds[2]={90,90};
+Rover rover; // initialize rover
+Adafruit_TiCoServo lservo;
+Adafruit_TiCoServo rservo;
+int cmds[2]={90,90}; //initialize motor commands to stopped
 
+// Command Velocity Subscriber and Callback
 void cmd_vel_cb( const geometry_msgs::Twist& cmd_vel ) {
-  vel = cmd_vel.linear.x;
-  turn = cmd_vel.angular.z;
+  float vel = cmd_vel.linear.x;
+  float turn = cmd_vel.angular.z;
   rover.send_cmd(vel, turn, cmds);
 }
 ros::Subscriber<geometry_msgs::Twist> cmd("cmd_vel", &cmd_vel_cb );
 
+//Blink Rade Subscriber and Callback
 void blink_cb(const std_msgs::Int16& blinkRate ){
   flash_rate = blinkRate.data;
 }
@@ -42,40 +58,58 @@ ros::Subscriber<std_msgs::Int16> flash("blink_rate", &blink_cb);
 bool light=false; // led on/off
 int count = flash_rate; // blink time (in loop cycles)
 
-const int led_1 = 13;
-
-const int kill_pin = 2;
 bool kill = LOW;
+bool estop = LOW;
 
-const int IR_1_pin = A1;
-const int IR_2_pin = A2;
 int IR_1;
 int IR_2;
 
 
 void setup() {
-  lservo.attach(4);
-  rservo.attach(3);
-  // runs once at the beginning of the script
+  // attach servos to pins
+  lservo.attach(lservo_pin);
+  rservo.attach(rservo_pin);
+  
   nh.getHardware()->setBaud(57600);
   nh.initNode();
   nh.advertise(ir_sensors);
+  nh.advertise(estop_pub);
+  nh.advertise(irstop_pub);
   nh.subscribe(cmd);
   nh.subscribe(flash);
-  
-  ir.data = (int16_t*) malloc(3);
+
+  // memory allocation for the ir list length
   ir.data_length = 2;
+  ir.data = (int16_t*) malloc(ir.data_length+1);
   
-  pinMode(led_1, OUTPUT); // setup pin 12 as an output for the led
-  //pinMode(IR_1_pin, INPUT);
-  //pinMode(kill_pin, INPUT_PULLUP);
+  pinMode(led_1, OUTPUT); // setup led pin as an output
+  pinMode(IR_1_pin, INPUT);
+  pinMode(IR_2_pin, INPUT);
+  pinMode(kill_pin, INPUT_PULLUP);
 }
 
 void loop() {
   // runs continuously
-  
-  //kill = digitalRead(kill_pin);
-  
+
+  // read IR data
+  IR_1 = analogRead(IR_1_pin);
+  IR_2 = analogRead(IR_2_pin);
+  ir.data[0] = IR_1;
+  ir.data[1] = IR_2;
+  ir_sensors.publish( &ir );
+
+  // read estop
+  estop = digitalRead(kill_pin);
+
+  //check kill condition
+  kill = check_safe(estop, IR_1, IR_2);
+
+  is_irstopped.data=kill;
+  is_estopped.data=estop;
+  irstop_pub.publish(&is_irstopped);
+  estop_pub.publish(&is_estopped);
+
+  // arduino LED blink code
   if (count > flash_rate){ //if count is high enough, toggle the led
     count = 0; //reset count
     light = !light; // toggle led variable
@@ -90,13 +124,7 @@ void loop() {
     lservo.write(cmds[0]);
     rservo.write(cmds[1]);
   }
-  
-  IR_1 = analogRead(IR_1_pin);
-  IR_2 = analogRead(IR_2_pin);
-  ir.data[0] = IR_1;
-  ir.data[1] = IR_2;
-  ir_sensors.publish( &ir );
-  
+   
   nh.spinOnce();
   delay(2); // delay for stability
   count++; // increment count
