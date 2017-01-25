@@ -1,2 +1,0 @@
-- setup-file:
-    local-name: /home/sunny/catkin_ws/src/bravobot/wall_follow_minimal/cmake-build-debug/devel/setup.sh

@@ -1,8 +1,0 @@
-prefix=/home/sunny/catkin_ws/src/bravobot/wall_follow/cmake-build-debug/devel
-
-Name: wall_follow
-Description: Description of wall_follow
-Version: 0.0.0
-Cflags: 
-Libs: -L/home/sunny/catkin_ws/src/bravobot/wall_follow/cmake-build-debug/devel/lib 
-Requires: 
