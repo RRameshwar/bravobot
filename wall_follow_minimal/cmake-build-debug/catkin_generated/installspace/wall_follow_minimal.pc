@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: wall_follow_minimal
-Description: Description of wall_follow_minimal
-Version: 0.0.0
-Cflags: 
-Libs: -L/usr/local/lib 
-Requires: 
