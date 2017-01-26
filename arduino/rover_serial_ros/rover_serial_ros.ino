@@ -1,6 +1,7 @@
 #include <ArduinoHardware.h>
 
 #include <Adafruit_TiCoServo.h>
+#include <Adafruit_NeoPixel.h>
 /* rover communication code
 Uses Rosserial to communicate with a computer running ros
 */
@@ -16,8 +17,8 @@ Uses Rosserial to communicate with a computer running ros
 #include <geometry_msgs/Twist.h>
 
 //arduino pin config
-const int lservo_pin=10;
-const int rservo_pin=11;
+const int lservo_pin=11;
+const int rservo_pin=8;
 const int IR_1_pin = A15;
 const int IR_2_pin = A14;
 const int kill_pin = A4;

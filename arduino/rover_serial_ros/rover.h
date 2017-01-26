@@ -25,6 +25,7 @@ class Rover {
 public:
   Rover(){
     right_motor.reverse();
+    left_motor.reverse();
   }
   void send_cmd(float vel, float turn, int* cmds){
     right_vel = vel+turn;
