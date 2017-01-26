@@ -5,10 +5,10 @@ class Motor {
   bool invert=false;
   
 public:
-  int cmd(float cmd_vel) {
-    if (cmd_vel > 0.8) cmd_vel = 0.8;
-    if (cmd_vel < -0.8) cmd_vel = -0.8;
-    vel = 90 + cmd_vel*90;
+  int cmd(float req_vel) {
+    if (req_vel > 0.8) req_vel = 0.8;
+    if (req_vel < -0.8) req_vel = -0.8;
+    vel = 90 + req_vel*90;
     if (invert) vel = 180-vel;
     return int(vel);
   }
@@ -24,7 +24,7 @@ class Rover {
   Motor right_motor;
 public:
   Rover(){
-    left_motor.reverse();
+    right_motor.reverse();
   }
   void send_cmd(float vel, float turn, int* cmds){
     right_vel = vel+turn;

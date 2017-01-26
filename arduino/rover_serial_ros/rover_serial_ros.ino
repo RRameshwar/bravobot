@@ -16,12 +16,13 @@ Uses Rosserial to communicate with a computer running ros
 #include <geometry_msgs/Twist.h>
 
 //arduino pin config
-const int lservo_pin=3;
-const int rservo_pin=4;
-const int IR_1_pin = A1;
-const int IR_2_pin = A2;
-const int kill_pin = 2;
+const int lservo_pin=10;
+const int rservo_pin=11;
+const int IR_1_pin = A15;
+const int IR_2_pin = A14;
+const int kill_pin = A4;
 const int led_1 = 13;
+const int headlight_left=39;
 
 // ROS setup
 ros::NodeHandle nh;
@@ -60,6 +61,7 @@ int count = flash_rate; // blink time (in loop cycles)
 
 bool kill = LOW;
 bool estop = LOW;
+bool ir_stop = LOW;
 
 int IR_1;
 int IR_2;
@@ -99,12 +101,14 @@ void loop() {
   ir_sensors.publish( &ir );
 
   // read estop
-  estop = digitalRead(kill_pin);
+  estop = analogRead(kill_pin)>500;
 
   //check kill condition
-  kill = check_safe(estop, IR_1, IR_2);
+  ir_stop = check_safe(IR_1, IR_2);
 
-  is_irstopped.data=kill;
+  kill = estop||ir_stop;
+
+  is_irstopped.data=ir_stop;
   is_estopped.data=estop;
   irstop_pub.publish(&is_irstopped);
   estop_pub.publish(&is_estopped);
