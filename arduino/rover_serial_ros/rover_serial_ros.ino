@@ -27,8 +27,10 @@ const int headlight_left=39;
 
 //lights
 
-CircleLight portCircle(38, 0);
-//CircleLight starCircle(39, 10);
+CircleLight portFore;
+CircleLight starFore;
+CircleLight portAft;
+CircleLight starAft;
 
 // ROS setup
 ros::NodeHandle nh;
@@ -40,7 +42,7 @@ ros::Publisher estop_pub("estop", &is_estopped);
 std_msgs::Bool is_irstopped;
 ros::Publisher irstop_pub("ir_stop", &is_irstopped); 
 
-int flash_rate=50;
+int flash_rate=30;
 
 Rover rover; // initialize rover
 Adafruit_TiCoServo lservo;
@@ -63,7 +65,8 @@ ros::Subscriber<std_msgs::Int16> flash("blink_rate", &blink_cb);
 
 
 bool light=false; // led on/off
-int count = flash_rate; // blink time (in loop cycles)
+int count = 0; // blink time (in loop cycles)
+int long_count = 0; //counts of blinks
 
 bool kill = LOW;
 bool estop = LOW;
@@ -74,6 +77,7 @@ int IR_2;
 
 
 void setup() {
+  
   // attach servos to pins
   lservo.attach(lservo_pin);
   rservo.attach(rservo_pin);
@@ -95,8 +99,16 @@ void setup() {
   pinMode(IR_2_pin, INPUT);
   pinMode(kill_pin, INPUT_PULLUP);
 
-  //portCircle.left.TurnOn(0,100,0);
-  //starCircle.right.TurnOn(100,0,0);
+  // lights
+  portFore.Setup(38, 8);
+  starFore.Setup(39, 4);
+  portAft.Setup(40, 4);
+  starAft.Setup(41, 4);
+
+  portFore.LeftOn(100, 0, 0);
+  starFore.RightOn(0, 100, 0);
+  portAft.TurnOn(100, 0, 0);
+  starAft.TurnOn(100, 0, 0);
 }
 
 void loop() {
@@ -125,8 +137,21 @@ void loop() {
   // arduino LED blink code
   if (count > flash_rate){ //if count is high enough, toggle the led
     count = 0; //reset count
-    light = !light; // toggle led variable
-    //digitalWrite(led_1, light); // write to led
+    digitalWrite(led_1, long_count%2==0); // write to led
+    if (long_count%MID==0) light = !light; // toggle light variable
+    if (light){
+      portFore.RightOn(0, 0, 100);
+      starFore.LeftOn(0, 0, 100);
+      portAft.RightOn(0, 0, 0);
+      starAft.RightOn(0, 0, 0);
+    }
+    else{
+      portFore.RightOn(0, 100, 20);
+      starFore.LeftOn(0, 100, 20);
+      portAft.RightOn(100, 50, 0);
+      starAft.RightOn(100, 50, 0);
+    }
+    long_count = (long_count+1)%SSLOW;
   }
   
   if (kill){
