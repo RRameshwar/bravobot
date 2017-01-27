@@ -19,11 +19,16 @@ Uses Rosserial to communicate with a computer running ros
 //arduino pin config
 const int lservo_pin=11;
 const int rservo_pin=8;
-const int IR_1_pin = A15;
-const int IR_2_pin = A14;
-const int kill_pin = A4;
+const int IR_1_pin = A5;
+const int IR_2_pin = A4;
+const int kill_pin = A3;
 const int led_1 = 13;
 const int headlight_left=39;
+
+//lights
+
+CircleLight portCircle(38, 0);
+//CircleLight starCircle(39, 10);
 
 // ROS setup
 ros::NodeHandle nh;
@@ -89,6 +94,9 @@ void setup() {
   pinMode(IR_1_pin, INPUT);
   pinMode(IR_2_pin, INPUT);
   pinMode(kill_pin, INPUT_PULLUP);
+
+  //portCircle.left.TurnOn(0,100,0);
+  //starCircle.right.TurnOn(100,0,0);
 }
 
 void loop() {
@@ -118,7 +126,7 @@ void loop() {
   if (count > flash_rate){ //if count is high enough, toggle the led
     count = 0; //reset count
     light = !light; // toggle led variable
-    digitalWrite(led_1, light); // write to led
+    //digitalWrite(led_1, light); // write to led
   }
   
   if (kill){
