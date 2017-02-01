@@ -1,7 +1,6 @@
 #include <ArduinoHardware.h>
 
 #include <Adafruit_TiCoServo.h>
-#include <Adafruit_NeoPixel.h>
 /* rover communication code
 Uses Rosserial to communicate with a computer running ros
 */
@@ -19,18 +18,14 @@ Uses Rosserial to communicate with a computer running ros
 //arduino pin config
 const int lservo_pin=11;
 const int rservo_pin=8;
-const int IR_1_pin = A5;
-const int IR_2_pin = A4;
-const int kill_pin = A3;
+const int IR_1_pin = A15;
+const int IR_2_pin = A14;
+const int kill_pin = A4;
 const int led_1 = 13;
 const int headlight_left=39;
 
-//lights
 
-CircleLight portFore;
-CircleLight starFore;
-CircleLight portAft;
-CircleLight starAft;
+#define NO_MOTION HIGH
 
 // ROS setup
 ros::NodeHandle nh;
@@ -42,7 +37,12 @@ ros::Publisher estop_pub("estop", &is_estopped);
 std_msgs::Bool is_irstopped;
 ros::Publisher irstop_pub("ir_stop", &is_irstopped); 
 
-int flash_rate=30;
+
+int flash_rate=100;
+int light_mode=0;
+
+float vel=0;
+float turn=0;
 
 Rover rover; // initialize rover
 Adafruit_TiCoServo lservo;
@@ -51,22 +51,21 @@ int cmds[2]={90,90}; //initialize motor commands to stopped
 
 // Command Velocity Subscriber and Callback
 void cmd_vel_cb( const geometry_msgs::Twist& cmd_vel ) {
-  float vel = cmd_vel.linear.x;
-  float turn = cmd_vel.angular.z;
+  vel = cmd_vel.linear.x;
+  turn = cmd_vel.angular.z;
   rover.send_cmd(vel, turn, cmds);
 }
 ros::Subscriber<geometry_msgs::Twist> cmd("cmd_vel", &cmd_vel_cb );
 
 //Blink Rade Subscriber and Callback
-void blink_cb(const std_msgs::Int16& blinkRate ){
-  flash_rate = blinkRate.data;
+void light_mode_cb(const std_msgs::Int16& new_mode ){
+  light_mode = new_mode.data;
 }
-ros::Subscriber<std_msgs::Int16> flash("blink_rate", &blink_cb);
+ros::Subscriber<std_msgs::Int16> light("light_mode", &light_mode_cb);
 
 
-bool light=false; // led on/off
+bool led=false; // led on/off
 int count = 0; // blink time (in loop cycles)
-int long_count = 0; //counts of blinks
 
 bool kill = LOW;
 bool estop = LOW;
@@ -88,7 +87,7 @@ void setup() {
   nh.advertise(estop_pub);
   nh.advertise(irstop_pub);
   nh.subscribe(cmd);
-  nh.subscribe(flash);
+  nh.subscribe(light);
 
   // memory allocation for the ir list length
   ir.data_length = 2;
@@ -100,15 +99,7 @@ void setup() {
   pinMode(kill_pin, INPUT_PULLUP);
 
   // lights
-  portFore.Setup(38, 8);
-  starFore.Setup(39, 4);
-  portAft.Setup(40, 4);
-  starAft.Setup(41, 4);
-
-  portFore.LeftOn(100, 0, 0);
-  starFore.RightOn(0, 100, 0);
-  portAft.TurnOn(100, 0, 0);
-  starAft.TurnOn(100, 0, 0);
+  setup_lights();
 }
 
 void loop() {
@@ -137,24 +128,12 @@ void loop() {
   // arduino LED blink code
   if (count > flash_rate){ //if count is high enough, toggle the led
     count = 0; //reset count
-    digitalWrite(led_1, long_count%2==0); // write to led
-    if (long_count%MID==0) light = !light; // toggle light variable
-    if (light){
-      portFore.RightOn(0, 0, 100);
-      starFore.LeftOn(0, 0, 100);
-      portAft.RightOn(0, 0, 0);
-      starAft.RightOn(0, 0, 0);
-    }
-    else{
-      portFore.RightOn(0, 100, 20);
-      starFore.LeftOn(0, 100, 20);
-      portAft.RightOn(100, 50, 0);
-      starAft.RightOn(100, 50, 0);
-    }
-    long_count = (long_count+1)%SSLOW;
+    digitalWrite(led_1, led); // write to led
+    led = !led;
+    update_lights(estop, ir_stop, light_mode, vel, turn);
   }
   
-  if (kill){
+  if (kill||NO_MOTION){
     lservo.write(90);
     rservo.write(90);
   }
