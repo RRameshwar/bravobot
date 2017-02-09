@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   laser_geometry
+  cv_bridge
+  image_transport
   tf
 )
 
@@ -133,6 +135,7 @@ include_directories(
 
 ## Declare a C++ executable
 add_executable(warmup_node src/warmup_node.cpp)
+add_executable(pcl_node src/pcl_node.cpp)
 
 
 ## Add cmake target dependencies of the executable
@@ -141,6 +144,9 @@ add_executable(warmup_node src/warmup_node.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(warmup_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(pcl_node
   ${catkin_LIBRARIES}
 )
 
