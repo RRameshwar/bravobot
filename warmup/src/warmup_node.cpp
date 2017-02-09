@@ -5,6 +5,7 @@
 #include "sensor_msgs/LaserScan.h"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <boost/thread/mutex.hpp>
 
 static const std::string OPENCV_WINDOW = "Image window";
 
@@ -23,6 +24,11 @@ class ImageConverter
   ros::Publisher laser_pub_;
 
   float lastScan[512];
+  boost::mutex lastScan_mutex_;
+  int scanSize_;
+  int rightEdgeScanIndex_;
+  int leftEdgeScanIndex_;
+
 
 public:
   ImageConverter()
@@ -35,7 +41,7 @@ public:
 
     // Subscribe to laser scan data
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
-    laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_smooth", 1000);
+    laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
 
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     cv::namedWindow(OPENCV_WINDOW);
@@ -63,11 +69,24 @@ public:
     if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
       cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
 
-    cv::Mat my_image;
-    cv::cvtColor(cv_ptr->image, my_image, cv::COLOR_BGR2HSV);
+    cv::Mat hsv_image;
+    cv::cvtColor(cv_ptr->image, hsv_image, cv::COLOR_BGR2HSV);
+
+    cv::Mat hsv_split[3];
+    cv::split(hsv_image, hsv_split);
+
+    // 
+    // TODO(rlouie):
+    // Iterate through lastScan[leftEdgeScanIndex_] -> lastScan[rightEdgeScanIndex_]
+    // Define the depth of the image by each scan value
+    // You can define a new cv::Mat with depth 2, where we have hue and depth
+    // A visualization of just the depth channel would be a good debugging step.
+    // 
 
     // Update GUI Window
-    cv::imshow("my window", my_image);
+    cv::imshow("hsv", hsv_image);
+    cv::imshow("hue", hsv_split[0]);
+    cv::imshow("value", hsv_split[2]);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
     
@@ -83,32 +102,47 @@ public:
   void laserScanCallback(sensor_msgs::LaserScan msg)
   {
     int size = msg.ranges.size();
+    if (!scanSize_) scanSize_= size;
 
+    // TODO(rlouie): set the right/left edges of sensor fusion cone by calibration
+    if (!rightEdgeScanIndex_) rightEdgeScanIndex_ = size*1/6;
+    if (!leftEdgeScanIndex_) rightEdgeScanIndex_ = size*5/6;
+
+    // 
+    // Smooth the scan
+    //
     float lidarDists[size];
-
-    for(int i = 0; i < size; i++){
-        double delta = fabs(msg.ranges[i] - lastScan[i]);
-        if(delta < 0.3){
-            lidarDists[i] = msg.ranges[i];
-        } else{
-            lidarDists[i] = std::numeric_limits<double>::infinity();
-        }
-        lastScan[i] = msg.ranges[i];
+    {
+      boost::mutex::scoped_lock scoped_lock(lastScan_mutex_);
+      for(int i = 0; i < size; i++){
+          double delta = fabs(msg.ranges[i] - lastScan[i]);
+          if(delta < 0.3){
+              lidarDists[i] = msg.ranges[i];
+          } else{
+              lidarDists[i] = std::numeric_limits<double>::infinity();
+          }
+          lastScan[i] = msg.ranges[i];
+      }
     }
 
-    // sensor_msgs::LaserScan msg;
-    // float msg.ranges[size];
-    for(unsigned int i = 0; i < size; ++i){
-        if (i < size/4 || i > size*3/4)
-        {
-          msg.ranges[i] = lidarDists[i];
-        }
-        else
-        {
-          msg.ranges[i] = std::numeric_limits<double>::infinity();
-        }
+    //
+    // Cone of interest
+    //
+    for(unsigned int i = 0; i < size; ++i)
+    {
+      if (i < rightEdgeScanIndex_ || i > leftEdgeScanIndex_)
+      {
+        msg.ranges[i] = lidarDists[i];
+      }
+      else
+      {
+        msg.ranges[i] = std::numeric_limits<double>::infinity();
+      }
     }
 
+    // 
+    // Publish
+    // 
     laser_pub_.publish(msg);
   }
 
