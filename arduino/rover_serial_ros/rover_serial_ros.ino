@@ -25,7 +25,7 @@ const int led_1 = 13;
 const int headlight_left=39;
 
 
-#define NO_MOTION HIGH
+#define NO_MOTION LOW
 
 // ROS setup
 ros::NodeHandle nh;

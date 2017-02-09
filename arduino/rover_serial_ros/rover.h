@@ -6,9 +6,9 @@ class Motor {
   
 public:
   int cmd(float req_vel) {
-    if (req_vel > 0.8) req_vel = 0.8;
-    if (req_vel < -0.8) req_vel = -0.8;
-    vel = 90 + req_vel*90;
+    if (req_vel > 1) req_vel = 1;
+    if (req_vel < -1) req_vel = -1;
+    vel = 90 + req_vel*60;
     if (invert) vel = 180-vel;
     return int(vel);
   }
