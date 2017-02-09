@@ -1,6 +1,7 @@
 #include <ArduinoHardware.h>
 
 #include <Adafruit_TiCoServo.h>
+#include <Encoder.h>
 /* rover communication code
 Uses Rosserial to communicate with a computer running ros
 */
@@ -13,11 +14,16 @@ Uses Rosserial to communicate with a computer running ros
 #include <std_msgs/Bool.h>
 #include <std_msgs/Int16MultiArray.h>
 #include <std_msgs/Int16.h>
+#include <std_msgs/Int32.h>
 #include <geometry_msgs/Twist.h>
 
 //arduino pin config
 const int lservo_pin=11;
 const int rservo_pin=8;
+const int lEnc1=19;
+const int lEnc2=18;
+const int rEnc1=20;
+const int rEnc2=21;
 const int IR_1_pin = A15;
 const int IR_2_pin = A14;
 const int kill_pin = A4;
@@ -36,6 +42,10 @@ std_msgs::Bool is_estopped;
 ros::Publisher estop_pub("estop", &is_estopped);
 std_msgs::Bool is_irstopped;
 ros::Publisher irstop_pub("ir_stop", &is_irstopped); 
+std_msgs::Int32 leftEncCnt;
+std_msgs::Int32 rightEncCnt;
+ros::Publisher leftEnc_pub("left_encoder", &leftEncCnt);
+ros::Publisher rightEnc_pub("right_encoder", &rightEncCnt);
 
 
 int flash_rate=100;
@@ -74,7 +84,6 @@ bool ir_stop = LOW;
 int IR_1;
 int IR_2;
 
-
 void setup() {
   
   // attach servos to pins
@@ -86,6 +95,8 @@ void setup() {
   nh.advertise(ir_sensors);
   nh.advertise(estop_pub);
   nh.advertise(irstop_pub);
+  nh.advertise(leftEnc_pub);
+  nh.advertise(rightEnc_pub);
   nh.subscribe(cmd);
   nh.subscribe(light);
 
@@ -102,8 +113,25 @@ void setup() {
   setup_lights();
 }
 
+
+//Encoder initialization
+Encoder leftEnc(lEnc1, lEnc2);
+Encoder rightEnc(rEnc1, rEnc2);
+long lEncCnt=0;
+long rEncCnt=0;
+
+
 void loop() {
   // runs continuously
+
+  // read Encoder data
+  lEncCnt = leftEnc.read();
+  rEncCnt = rightEnc.read();
+  leftEncCnt.data=lEncCnt;
+  rightEncCnt.data=rEncCnt;
+  leftEnc_pub.publish(&leftEncCnt);
+  rightEnc_pub.publish(&rightEncCnt);
+  
 
   // read IR data
   IR_1 = analogRead(IR_1_pin);
