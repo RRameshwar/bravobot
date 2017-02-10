@@ -6,6 +6,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <boost/thread/mutex.hpp>
+#include <iostream>
 
 static const std::string OPENCV_WINDOW = "Image window";
 
@@ -29,6 +30,7 @@ class ImageConverter
   int rightEdgeScanIndex_;
   int leftEdgeScanIndex_;
 
+  bool verbose_;
 
 public:
   ImageConverter()
@@ -45,6 +47,8 @@ public:
 
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     cv::namedWindow(OPENCV_WINDOW);
+
+    verbose_ = false;
   }
 
   ~ImageConverter()
@@ -65,35 +69,72 @@ public:
       return;
     }
 
-    // Draw an example circle on the video stream
-    if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
-      cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
-
+    // 
+    // Convert to HSV
+    // 
     cv::Mat hsv_image;
     cv::cvtColor(cv_ptr->image, hsv_image, cv::COLOR_BGR2HSV);
-
     cv::Mat hsv_split[3];
     cv::split(hsv_image, hsv_split);
 
     // 
-    // TODO(rlouie):
-    // Iterate through lastScan[leftEdgeScanIndex_] -> lastScan[rightEdgeScanIndex_]
-    // Define the depth of the image by each scan value
-    // You can define a new cv::Mat with depth 2, where we have hue and depth
-    // A visualization of just the depth channel would be a good debugging step.
+    // Construct depth image
     // 
+    // Skip this until the lidar data has caught up 
+    if (!leftEdgeScanIndex_ || !rightEdgeScanIndex_)
+    {
+      return;
+    }
+    // TODO(rlouie): calculate scan_width for laserData in which index 0 is not positive X heading
+    int scan_width = scanSize_ - leftEdgeScanIndex_ + rightEdgeScanIndex_;
+    if (scan_width < 0)
+    {
+      return;
+    }
+    float scale_factor = float(scan_width) / float(hsv_image.cols);
+    cv::Mat depth_image(hsv_image.rows*scale_factor, scan_width, CV_8UC1);
+
+    if (verbose_)
+    {
+      std::cout << "scan width:  " << scan_width << std::endl;
+      std::cout << "scale_factor:  " << scale_factor << std::endl;
+      std::cout << depth_image.cols << std::endl;
+      std::cout << depth_image.rows << std::endl;
+    }
+    {
+      boost::mutex::scoped_lock scoped_lock(lastScan_mutex_);
+      int col_counter = 0;
+
+      for (int i = 0; i < scanSize_; i++)
+      {
+        if ((i < rightEdgeScanIndex_) || (i > leftEdgeScanIndex_))
+        {
+          cv::Mat column = depth_image.col(col_counter);
+          cv::Scalar val(ImageConverter::convertScanRangeToCameraDepth(lastScan[i]));
+          column.setTo(val);
+          col_counter++;
+        }
+      }
+    }
+
+    
 
     // Update GUI Window
-    cv::imshow("hsv", hsv_image);
+    // cv::imshow("hsv", hsv_image);
     cv::imshow("hue", hsv_split[0]);
-    cv::imshow("value", hsv_split[2]);
-    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    // cv::imshow("value", hsv_split[2]);
+    cv::imshow("depth", depth_image);
+    // cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
     
     // Output modified video stream
     image_pub_.publish(cv_ptr->toImageMsg());
   }
 
+  int convertScanRangeToCameraDepth(float range)
+  {
+    return int(128.0 / range);
+  }
   static void processMouseEvent(int event, int x, int y, int, void* )
   {
     ROS_INFO("TODO: implement some command that hovers and prints the rgb color value");
@@ -102,11 +143,11 @@ public:
   void laserScanCallback(sensor_msgs::LaserScan msg)
   {
     int size = msg.ranges.size();
-    if (!scanSize_) scanSize_= size;
+    scanSize_= size;
 
     // TODO(rlouie): set the right/left edges of sensor fusion cone by calibration
-    if (!rightEdgeScanIndex_) rightEdgeScanIndex_ = size*1/6;
-    if (!leftEdgeScanIndex_) rightEdgeScanIndex_ = size*5/6;
+    rightEdgeScanIndex_ = size*1/6;
+    leftEdgeScanIndex_ = size*5/6;
 
     // 
     // Smooth the scan
