@@ -117,14 +117,31 @@ public:
       }
     }
 
-    
+    // 
+    // Create Small Hue / Value
+    // 
+    cv::Mat small_hue;
+    cv::resize(hsv_split[0], small_hue, depth_image.size());
+    cv::Mat small_val;
+    cv::resize(hsv_split[2], small_val, depth_image.size());
+
+    // 
+    // Merge Depth and RGB
+    // 
+    cv::Mat final_image;
+    std::vector<cv::Mat> channels;
+    channels.push_back(small_hue);
+    channels.push_back(depth_image);
+    channels.push_back(small_val);
+    cv::merge(channels, final_image);
 
     // Update GUI Window
     // cv::imshow("hsv", hsv_image);
-    cv::imshow("hue", hsv_split[0]);
+    cv::imshow("hue", small_hue);
     // cv::imshow("value", hsv_split[2]);
     cv::imshow("depth", depth_image);
-    // cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    cv::imshow("final_image", final_image);
+    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
     
     // Output modified video stream
@@ -146,8 +163,8 @@ public:
     scanSize_= size;
 
     // TODO(rlouie): set the right/left edges of sensor fusion cone by calibration
-    rightEdgeScanIndex_ = size*1/6;
-    leftEdgeScanIndex_ = size*5/6;
+    rightEdgeScanIndex_ = size*1/8;
+    leftEdgeScanIndex_ = size*7/8;
 
     // 
     // Smooth the scan
