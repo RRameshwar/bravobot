@@ -7,6 +7,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <boost/thread/mutex.hpp>
 #include <iostream>
+#include <warmup/LidarCone.h>
 
 static const std::string OPENCV_WINDOW = "Image window";
 
@@ -26,9 +27,12 @@ class ImageConverter
 
   float lastScan[512];
   boost::mutex lastScan_mutex_;
-  int scanSize_;
-  int rightEdgeScanIndex_;
-  int leftEdgeScanIndex_;
+  unsigned int scanSize_;
+  unsigned int rightEdgeScanIndex_;
+  unsigned int leftEdgeScanIndex_;
+
+  // dynamic reconfigure
+  ros::Subscriber reconfig_sub_;
 
   bool verbose_;
 
@@ -37,18 +41,18 @@ public:
     : it_(nh_)
   {
     // Subscribe to input video feed and publish output video feed
-    //image_sub_ = it_.subscribe("/image_raw", 1, 
-      //&ImageConverter::imageCb, this);
+    image_sub_ = it_.subscribe("/image_raw", 1, &ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
 
     // Subscribe to laser scan data
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
     laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
 
+    reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     cv::namedWindow(OPENCV_WINDOW);
 
-    verbose_ = false;
+    verbose_ = true;
   }
 
   ~ImageConverter()
@@ -96,6 +100,7 @@ public:
 
     if (verbose_)
     {
+      std::cout << "scan size:  " << scanSize_ << std::endl;
       std::cout << "scan width:  " << scan_width << std::endl;
       std::cout << "scale_factor:  " << scale_factor << std::endl;
       std::cout << depth_image.cols << std::endl;
@@ -105,9 +110,9 @@ public:
       boost::mutex::scoped_lock scoped_lock(lastScan_mutex_);
       int col_counter = 0;
 
-      for (int i = 0; i < scanSize_; i++)
+      for (unsigned int i = 0; i < scanSize_; i++)
       {
-        if ((i < rightEdgeScanIndex_) || (i > leftEdgeScanIndex_))
+        if (ImageConverter::isScanRangeInCone(i))
         {
           cv::Mat column = depth_image.col(col_counter);
           cv::Scalar val(ImageConverter::convertScanRangeToCameraDepth(lastScan[i]));
@@ -152,19 +157,30 @@ public:
   {
     return int(128.0 / range);
   }
+
+  bool isScanRangeInCone(unsigned int scanRangeIndex)
+  {
+    return scanRangeIndex < rightEdgeScanIndex_ && scanRangeIndex > leftEdgeScanIndex_; 
+  }
+
   static void processMouseEvent(int event, int x, int y, int, void* )
   {
     ROS_INFO("TODO: implement some command that hovers and prints the rgb color value");
   }
 
+  void reconfigCb(warmup::LidarCone msg) {
+    rightEdgeScanIndex_ = msg.right_limit;
+    leftEdgeScanIndex_ = msg.left_limit;
+  }
+
   void laserScanCallback(sensor_msgs::LaserScan msg)
   {
-    int size = msg.ranges.size();
+    unsigned int size = msg.ranges.size();
     scanSize_= size;
 
     // TODO(rlouie): set the right/left edges of sensor fusion cone by calibration
-    rightEdgeScanIndex_ = size*7/12;
-    leftEdgeScanIndex_ = size*5/12;
+    /* rightEdgeScanIndex_ = size*7/12; */
+    /* leftEdgeScanIndex_ = size*5/12; */
 
     // 
     // Smooth the scan
@@ -172,7 +188,7 @@ public:
     float lidarDists[size];
     {
       boost::mutex::scoped_lock scoped_lock(lastScan_mutex_);
-      for(int i = 0; i < size; i++){
+      for(unsigned int i = 0; i < size; i++){
           double delta = fabs(msg.ranges[i] - lastScan[i]);
           if(delta < 0.3){
               lidarDists[i] = msg.ranges[i];
@@ -186,15 +202,18 @@ public:
     //
     // Cone of interest
     //
-    for(unsigned int i = 0; i < size; ++i)
+    if (rightEdgeScanIndex_ || leftEdgeScanIndex_)
     {
-      if (i > rightEdgeScanIndex_ || i < leftEdgeScanIndex_)
+      for(unsigned int i = 0; i < size; ++i)
       {
-        msg.ranges[i] = lidarDists[i];
-      }
-      else
-      {
-        msg.ranges[i] = std::numeric_limits<double>::infinity();
+        if (ImageConverter::isScanRangeInCone(i))
+        {
+          msg.ranges[i] = lidarDists[i];
+        }
+        else
+        {
+          msg.ranges[i] = std::numeric_limits<double>::infinity();
+        }
       }
     }
 

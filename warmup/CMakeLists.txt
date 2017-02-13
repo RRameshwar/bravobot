@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
   tf
+  dynamic_reconfigure
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,11 +52,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  LidarCone.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -71,10 +72,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   nav_msgs#   sensor_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -91,10 +92,9 @@ find_package(catkin REQUIRED COMPONENTS
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+generate_dynamic_reconfigure_options(
+    cfg/SensorFusion.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -108,7 +108,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES warmup
-#  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp sensor_msgs std_msgs
+  CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -136,11 +136,12 @@ include_directories(
 ## Declare a C++ executable
 add_executable(warmup_node src/warmup_node.cpp)
 add_executable(pcl_node src/pcl_node.cpp)
-
+add_executable(calibration_server src/calibration_server.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(warmup_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(warmup_node ${PROJECT_NAME}_gencfg)
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(warmup_node
@@ -149,7 +150,9 @@ target_link_libraries(warmup_node
 target_link_libraries(pcl_node
   ${catkin_LIBRARIES}
 )
-
+target_link_libraries(calibration_server
+  ${catkin_LIBRARIES}
+)
 #############
 ## Install ##
 #############
