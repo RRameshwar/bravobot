@@ -27,6 +27,7 @@ class ImageConverter
 
   float lastScan[512];
   boost::mutex lastScan_mutex_;
+  boost::mutex reconfig_mutex_;
   unsigned int scanSize_;
   unsigned int rightEdgeScanIndex_;
   unsigned int leftEdgeScanIndex_;
@@ -85,12 +86,12 @@ public:
     // Construct depth image
     // 
     // Skip this until the lidar data has caught up 
+    boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_);
     if (!leftEdgeScanIndex_ || !rightEdgeScanIndex_)
     {
       return;
     }
-    // TODO(rlouie): calculate scan_width for laserData in which index 0 is not positive X heading
-    int scan_width = scanSize_ - leftEdgeScanIndex_ + rightEdgeScanIndex_;
+    int scan_width = rightEdgeScanIndex_ - leftEdgeScanIndex_;
     if (scan_width < 0)
     {
       return;
@@ -100,6 +101,8 @@ public:
 
     if (verbose_)
     {
+      std::cout << "leftEdgeScanIndex_:  " << leftEdgeScanIndex_ << std::endl;
+      std::cout << "rightEdgeScanIndex_:  " << rightEdgeScanIndex_ << std::endl;
       std::cout << "scan size:  " << scanSize_ << std::endl;
       std::cout << "scan width:  " << scan_width << std::endl;
       std::cout << "scale_factor:  " << scale_factor << std::endl;
@@ -169,6 +172,7 @@ public:
   }
 
   void reconfigCb(warmup::LidarCone msg) {
+    boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_); 
     rightEdgeScanIndex_ = msg.right_limit;
     leftEdgeScanIndex_ = msg.left_limit;
   }
@@ -204,6 +208,7 @@ public:
     //
     if (rightEdgeScanIndex_ || leftEdgeScanIndex_)
     {
+      boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_);
       for(unsigned int i = 0; i < size; ++i)
       {
         if (ImageConverter::isScanRangeInCone(i))
