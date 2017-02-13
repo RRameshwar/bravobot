@@ -37,8 +37,8 @@ public:
     : it_(nh_)
   {
     // Subscribe to input video feed and publish output video feed
-    image_sub_ = it_.subscribe("/camera/image_raw", 1, 
-      &ImageConverter::imageCb, this);
+    //image_sub_ = it_.subscribe("/image_raw", 1, 
+      //&ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
 
     // Subscribe to laser scan data
@@ -163,8 +163,8 @@ public:
     scanSize_= size;
 
     // TODO(rlouie): set the right/left edges of sensor fusion cone by calibration
-    rightEdgeScanIndex_ = size*1/8;
-    leftEdgeScanIndex_ = size*7/8;
+    rightEdgeScanIndex_ = size*7/12;
+    leftEdgeScanIndex_ = size*5/12;
 
     // 
     // Smooth the scan
@@ -188,7 +188,7 @@ public:
     //
     for(unsigned int i = 0; i < size; ++i)
     {
-      if (i < rightEdgeScanIndex_ || i > leftEdgeScanIndex_)
+      if (i > rightEdgeScanIndex_ || i < leftEdgeScanIndex_)
       {
         msg.ranges[i] = lidarDists[i];
       }
