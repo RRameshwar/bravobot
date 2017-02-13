@@ -1,0 +1,10 @@
+<launch>
+  <remap from="lwheel_ticks" to="left_encoder"/>
+  <remap from="rwheel_ticks" to="right_encoder"/>
+  <node pkg="diff_drive" type="diff_drive_odometry" name="odom_calc">
+    <param name="wheel_separation" value="0.54"/>
+    <param name="ticks_per_meter" value="6260"/>
+    <param name="encoder_max" value="100000"/>
+    <param name="encoder_min" value="-100000"/>
+  </node>
+</launch>
