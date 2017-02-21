@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     
     /* Display the contours and show the result. */
     IplImage *coloured_image = cvCloneImage(image);
-    slic.two_level_cluster(coloured_image);
+    slic.two_level_cluster(coloured_image, 0, 1.5, 3, 0.5);
     slic.display_contours(coloured_image, CV_RGB(255,0,0));
     cvShowImage("result", coloured_image);
     cvWaitKey(0);

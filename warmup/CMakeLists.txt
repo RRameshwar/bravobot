@@ -147,6 +147,7 @@ add_dependencies(warmup_node ${PROJECT_NAME}_gencfg)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(warmup_node
   ${catkin_LIBRARIES}
+  slic
 )
 target_link_libraries(pcl_node
   ${catkin_LIBRARIES}

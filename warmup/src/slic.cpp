@@ -394,7 +394,8 @@ double Slic::std(vector<double> v) {
     return stdev;
 }
 
-void Slic::two_level_cluster(IplImage *image) {
+void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance) {
+
     vector<CvScalar> colours(centers.size());
     
     /* Gather the colour values per cluster. */
@@ -438,12 +439,10 @@ void Slic::two_level_cluster(IplImage *image) {
         X.push_back(data_point);
     }
     
-    int kernel_type = 0;
-    double kernel_bandwidth = 1.5;
-    int dim = 3;
-    double mode_tolerance = 0.5;
     clustering::Meanshift estimator(kernel_type, kernel_bandwidth, dim, mode_tolerance);
+    /* The cluster labels */
     vec2dd modes;
+    /* The mapping of indexes of examples to modes */
     vector<int> indexmap;
     estimator.FindModes(X, modes, indexmap);
 

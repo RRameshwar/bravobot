@@ -75,7 +75,7 @@ class Slic {
         void display_center_grid(IplImage *image, CvScalar colour);
         void display_contours(IplImage *image, CvScalar colour);
         void colour_with_cluster_means(IplImage *image);
-        void two_level_cluster(IplImage *image);
+        void two_level_cluster(IplImage *image, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance); 
 	
 	/* helper stats functions */
 	double mu(vector<double> v);
