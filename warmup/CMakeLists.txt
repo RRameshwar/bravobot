@@ -124,9 +124,9 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(warmup
-#   src/${PROJECT_NAME}/warmup.cpp
-# )
+add_library(slic
+  src/slic.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -137,6 +137,7 @@ include_directories(
 add_executable(warmup_node src/warmup_node.cpp)
 add_executable(pcl_node src/pcl_node.cpp)
 add_executable(calibration_server src/calibration_server.cpp)
+add_executable(test_slic src/test_slic.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -152,6 +153,10 @@ target_link_libraries(pcl_node
 )
 target_link_libraries(calibration_server
   ${catkin_LIBRARIES}
+)
+target_link_libraries(test_slic
+  ${catkin_LIBRARIES}
+  slic
 )
 #############
 ## Install ##
