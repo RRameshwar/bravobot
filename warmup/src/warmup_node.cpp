@@ -145,48 +145,55 @@ public:
     cv::merge(channels, final_image);
 
     cv::Mat graph = cv::Mat(370, 255, CV_8UC3, cv::Scalar(255,255,255));
+
     for ( int indexrow = 0; indexrow < small_hue.rows; ++indexrow ) {
       for ( int indexcol = 0; indexcol < small_hue.cols; ++indexcol ) {
 
         float color = small_hue.at<float>(indexrow,indexcol, 0);
         color = roundf (color);
         int colorindex = static_cast<int>(color);
-        if (colorindex < 0){
-          colorindex = 0;
-        }
-        else if (colorindex > 360){
-          colorindex = 360;
-        }
+        // if (colorindex < 0){
+        //   colorindex = 0;
+        // }
+        // else if (colorindex > 360){
+        //   colorindex = 360;
+        // }
 
 
         float depth = depth_image.at<float> (indexrow,indexcol,0);
         depth = roundf (depth);
         int depthindex = static_cast<int>(depth);
-        if (depthindex < 0){
-          depthindex = 0;
-        }
-        else if (depthindex > 255){
-          depthindex = 255;
-        }
+        // if (depthindex < 0){
+        //   depthindex = 0;
+        // }
+        // else if (depthindex > 255){
+        //   depthindex = 255;
+        // }
 
         // std::cout << depthindex << std::endl;
 
-        // for (int adjcolor_index = colorindex + 10; adjcolor_index <= colorindex + 20; ++adjcolor_index){
-        //   for (int adjdepth_index = colorindex + 10; adjdepth_index <= colorindex + 20; ++adjdepth_index){
+        for (int adjcolor_index = colorindex+9; adjcolor_index <= colorindex + 15; ++adjcolor_index){
+          for (int adjdepth_index = depthindex+9; adjdepth_index <= depthindex + 15; ++adjdepth_index){
+            if (adjcolor_index >= 0 && adjcolor_index <= 360 && adjdepth_index >= 0 && adjdepth_index <= 255){
+              // std::cout << "adjcolor_index: " << adjcolor_index << std::endl;
+              cv::Vec3b pointcolor = graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index);
+              pointcolor = (0,0,0);
+              graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index) = pointcolor;
+            }
+            else{
+              ;
+            }
 
-        //     if (adjcolor_index > 0 && adjcolor_index < 360){
-        //       cv::Vec3b tempcolor = graph.at<cv::Vec3b>(adjcolor_index,depthindex);
-        //       adjcolor_index = (0,0,0);
-        //       graph.at<cv::Vec3b>(adjcolor_index,depthindex) = tempcolor;
-        //     }
+            // if (tempindex > 0 || tempindex < 360){
+            //   cv::Vec3b tempcolor = graph.at<cv::Vec3b>(tempindex,depthindex);
+            //   tempcolor = (0,0,0);
+            //   graph.at<cv::Vec3b>(tempindex,depthindex) = tempcolor;
+            // }
+          }
+        }
 
-        //     // if (tempindex > 0 || tempindex < 360){
-        //     //   cv::Vec3b tempcolor = graph.at<cv::Vec3b>(tempindex,depthindex);
-        //     //   tempcolor = (0,0,0);
-        //     //   graph.at<cv::Vec3b>(tempindex,depthindex) = tempcolor;
-        //     // }
-        //   }
-        // }
+        // std::cout << "Finished!" << colorindex << ", " << depthindex << std::endl;
+
       }
     }
 
