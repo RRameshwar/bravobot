@@ -10,6 +10,17 @@
 #include <warmup/LidarCone.h>
 #include <stdio.h>
 
+/* From test_slic.cpp */
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <stdio.h>
+#include <math.h>
+#include <vector>
+#include <float.h>
+using namespace std;
+
+#include "slic.h"
+
 static const std::string OPENCV_WINDOW = "Image window";
 
 // ROS -> OpenCV -> RGB-Depth?!
@@ -37,6 +48,8 @@ class ImageConverter
   ros::Subscriber reconfig_sub_;
 
   bool verbose_;
+  bool do_graph_;
+  bool do_slic_;
 
 public:
   ImageConverter()
@@ -54,7 +67,13 @@ public:
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     cv::namedWindow(OPENCV_WINDOW);
 
-    verbose_ = true;
+    verbose_ = false;
+    do_graph_ = false;
+    do_slic_ = true;
+    
+    /* Calibrated values for bravobot based on dynamic reconfigure test */
+    rightEdgeScanIndex_ = 345;
+    leftEdgeScanIndex_ = 180;
   }
 
   ~ImageConverter()
@@ -127,12 +146,16 @@ public:
     }
 
     // 
-    // Create Small Hue / Value
+    // Create Small Images 
     // 
     cv::Mat small_hue;
     cv::resize(hsv_split[0], small_hue, depth_image.size());
     cv::Mat small_val;
     cv::resize(hsv_split[2], small_val, depth_image.size());
+    cv::Mat small_bgr;
+    cv::resize(cv_ptr->image, small_bgr, depth_image.size());
+    cv::Mat small_lab;
+    cv::cvtColor(small_bgr, small_lab, cv::COLOR_BGR2Lab);
 
     // 
     // Merge Depth and RGB
@@ -144,6 +167,34 @@ public:
     channels.push_back(small_val);
     cv::merge(channels, final_image);
 
+
+    //
+    // SLIC
+    //
+    if (do_slic_)
+    {
+        IplImage *lab_image = new IplImage(small_lab);
+        /* Yield the number of superpixels and weight-factors from the user. */
+        int w = lab_image->width, h = lab_image->height;
+        int nr_superpixels = 200;
+        int nc = 40;
+  
+        double step = sqrt((w * h) / (double) nr_superpixels);
+  
+        /* Perform the SLIC superpixel algorithm. */
+        Slic slic;
+        slic.generate_superpixels(lab_image, step, nc);
+        slic.create_connectivity(lab_image);
+
+        /* Do second level of clustering on the superpixels */
+        cv::Mat final_image_copy = final_image.clone();
+        IplImage *final_image_ipl = new IplImage(final_image_copy);
+        slic.two_level_cluster(final_image_ipl, 0, 1.5, 3, 0.5);
+        cvShowImage("result", final_image_ipl);
+        cvWaitKey(3);
+    }
+
+    if (do_graph_) {
     cv::Mat graph = cv::Mat(370, 255, CV_8UC3, cv::Scalar(255,255,255));
 
     for ( int indexrow = 0; indexrow < small_hue.rows; ++indexrow ) {
@@ -196,14 +247,15 @@ public:
 
       }
     }
+    cv::imwrite("Screenshot.bmp",graph);
+    }
 
     // Update GUI Window
     // cv::imshow("hsv", hsv_image);
-    cv::imshow("hue", small_hue);
+    /* cv::imshow("hue", small_hue); */
     // cv::imshow("value", hsv_split[2]);
-    cv::imshow("depth", depth_image);
+    /* cv::imshow("depth", depth_image); */
     cv::imshow("final_image", final_image);
-    cv::imwrite("Screenshot.bmp",graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
     
