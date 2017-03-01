@@ -454,15 +454,19 @@ void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_ban
     CvScalar cvBlue = {{213,94,0}};
     CvScalar cvCyan = {{240,228,66}};
     /*     cvCyan = (240,228,66) */
-    /*     cvYellow = (86,180,233) */
-    /*     cvMagenta = (204,121,167) */
-        /* cvWhite = (255,255,255) */
-        /* cvBlack = (0,0,0) */
+    CvScalar cvYellow = {{86,180,233}};
+    CvScalar cvMagenta = {{204,121,167}};
+    CvScalar cvWhite = {{255,255,255}};
+    CvScalar cvBlack = {{0,0,0}};
     vector<CvScalar> cvColors;
     cvColors.push_back(cvRed);
     cvColors.push_back(cvGreen);
     cvColors.push_back(cvBlue);
     cvColors.push_back(cvCyan);
+    cvColors.push_back(cvYellow);
+    cvColors.push_back(cvMagenta);
+    cvColors.push_back(cvWhite);
+    cvColors.push_back(cvBlack);
     /* Fill in. */
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {

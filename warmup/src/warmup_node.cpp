@@ -185,10 +185,13 @@ public:
         slic.create_connectivity(lab_image);
 
         /* Do second level of clustering on the superpixels */
-        cv::Mat final_image_copy = final_image.clone();
+        cv::Mat final_image_copy = small_bgr.clone();
         IplImage *final_image_ipl = new IplImage(final_image_copy);
-        slic.two_level_cluster(final_image_ipl, 0, 1.5, 3, 0.5);
-        cvShowImage("result", final_image_ipl);
+        slic.colour_with_cluster_means(final_image_ipl);
+        slic.two_level_cluster (final_image_ipl, 0, 0.5, 3, 0.5);
+        //slic.display_contours(final_image_ipl, CV_RGB(0,255,255));
+        cv::Mat final_slic_image = cv::Mat(final_image_ipl);
+        cv::imshow("result", final_slic_image);
         cvWaitKey(3);
     }
 
@@ -251,9 +254,9 @@ public:
 
     // Update GUI Window
     // cv::imshow("hsv", hsv_image);
-    cv::imshow("hue", small_hue);
+//    cv::imshow("hue", small_hue);
     // cv::imshow("value", hsv_split[2]);
-    cv::imshow("depth", depth_image);
+//    cv::imshow("depth", depth_image);
     cv::imshow("final_image", final_image);
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
