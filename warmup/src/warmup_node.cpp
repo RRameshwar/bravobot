@@ -133,7 +133,7 @@ public:
     boost::mutex::scoped_lock scoped_lock(lastScan_mutex_);
     int col_counter = 0;
 
-    for (unsigned int i = 0; i < scanSize_; i++)
+    for (unsigned int i = scanSize_; i > 0; i--)
     {
       if (ImageConverter::isScanRangeInCone(i))
       {
