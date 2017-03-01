@@ -51,6 +51,8 @@ class ImageConverter
   bool do_graph_;
   bool do_slic_;
 
+  int counter;
+
 public:
   ImageConverter()
     : it_(nh_)
@@ -149,6 +151,8 @@ public:
     // 
     cv::Mat small_hue;
     cv::resize(hsv_split[0], small_hue, depth_image.size());
+    cv::Mat small_sat;
+    cv::resize(hsv_split[1], small_sat, depth_image.size());
     cv::Mat small_val;
     cv::resize(hsv_split[2], small_val, depth_image.size());
 
@@ -161,10 +165,13 @@ public:
     // Merge Depth and RGB
     // 
     cv::Mat final_image;
+    cv::Mat small_hsv;
     std::vector<cv::Mat> channels;
     channels.push_back(small_hue);
-    channels.push_back(depth_image);
+    channels.push_back(small_sat);
     channels.push_back(small_val);
+    cv::merge(channels, small_hsv);
+    channels.push_back(depth_image);
     cv::merge(channels, final_image);
 
     // SLIC
@@ -174,7 +181,7 @@ public:
         IplImage *lab_image = new IplImage(small_lab);
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
-        int nr_superpixels = 200;
+        int nr_superpixels = 250;
         int nc = 40;
  
         double step = sqrt((w * h) / (double) nr_superpixels);
@@ -185,14 +192,13 @@ public:
         slic.create_connectivity(lab_image);
 
         /* Do second level of clustering on the superpixels */
-        cv::Mat final_image_copy = small_bgr.clone();
+        cv::Mat final_image_copy = small_hsv.clone();
         IplImage *final_image_ipl = new IplImage(final_image_copy);
         slic.colour_with_cluster_means(final_image_ipl);
-        slic.two_level_cluster (final_image_ipl, 0, 0.5, 3, 0.5);
-        //slic.display_contours(final_image_ipl, CV_RGB(0,255,255));
+        CvScalar template_color= {{220, 40, 128}}; // HSV 
+        slic.two_level_cluster (final_image_ipl, template_color, 0, 1.5, 3, 0.5);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
         cv::imshow("result", final_slic_image);
-        cvWaitKey(3);
     }
 
     if (do_graph_) {

@@ -394,7 +394,7 @@ double Slic::std(vector<double> v) {
     return stdev;
 }
 
-void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance) {
+void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance) {
 
     vector<CvScalar> colours(centers.size());
     
@@ -446,6 +446,34 @@ void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_ban
     vector<int> indexmap;
     estimator.FindModes(X, modes, indexmap);
 
+    //
+    // Find Mode that has template color 
+    //
+    
+    // Get Mean of the Modes
+    vector<CvScalar> mode_colours(modes.size());
+    vector<int> mode_counts(modes.size());
+    for (int i = 0; i < (int)colours.size(); ++i) {
+        mode_colours[indexmap[i]].val[0] += colours[i].val[0];
+        mode_colours[indexmap[i]].val[1] += colours[i].val[1];
+        mode_colours[indexmap[i]].val[2] += colours[i].val[2];
+        mode_counts[indexmap[i]] += 1;
+    } 
+    for (int i = 0; i < (int)mode_colours.size(); ++i) {
+        mode_colours[i].val[0] /= mode_counts[i];
+        mode_colours[i].val[1] /= mode_counts[i];
+        mode_colours[i].val[2] /= mode_counts[i];
+    } 
+
+    vector<double> colorspace_dist(mode_colours.size());
+    for (int i = 0; i < (int)mode_colours.size(); ++i) {
+        colorspace_dist[i] = sqrt(pow(template_color.val[0]-mode_colours[i].val[0],2)+
+                                  pow(template_color.val[1]-mode_colours[i].val[1],2));
+                                  /* pow(template_color.val[2]-mode_colours[i].val[2],2)); */
+    }
+    int our_mode = std::distance(colorspace_dist.begin(), std::min_element(colorspace_dist.begin(), colorspace_dist.end()));
+
+    // COLOR ALL CLUSTERS
     for (int i = 0; i < (int)modes.size(); i++){
         cout << i << endl;
     }
@@ -470,8 +498,11 @@ void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_ban
     /* Fill in. */
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
-            CvScalar ncolour = cvColors[indexmap[clusters[i][j]] % cvColors.size()];
-            cvSet2D(image, j, i, ncolour);
+            if (our_mode == indexmap[clusters[i][j]])
+            {
+                CvScalar ncolour = cvColors[indexmap[clusters[i][j]] % cvColors.size()];
+                cvSet2D(image, j, i, ncolour);
+            }
         }
     }
 }
