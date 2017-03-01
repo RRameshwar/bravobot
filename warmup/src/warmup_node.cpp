@@ -10,6 +10,17 @@
 #include <warmup/LidarCone.h>
 #include <stdio.h>
 
+/* From test_slic.cpp */
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <stdio.h>
+#include <math.h>
+#include <vector>
+#include <float.h>
+using namespace std;
+
+#include "slic.h"
+
 static const std::string OPENCV_WINDOW = "Image window";
 
 // ROS -> OpenCV -> RGB-Depth?!
@@ -37,6 +48,8 @@ class ImageConverter
   ros::Subscriber reconfig_sub_;
 
   bool verbose_;
+  bool do_graph_;
+  bool do_slic_;
 
 public:
   ImageConverter()
@@ -54,7 +67,13 @@ public:
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     cv::namedWindow(OPENCV_WINDOW);
 
-    verbose_ = true;
+    verbose_ = false;
+    do_graph_ = false;
+    do_slic_ = true;
+
+    /* Calibrated values for bravobot based on dynamic reconfigure test */
+    rightEdgeScanIndex_ = 345;
+    leftEdgeScanIndex_ = 180;
   }
 
   ~ImageConverter()
@@ -110,29 +129,33 @@ public:
       std::cout << depth_image.cols << std::endl;
       std::cout << depth_image.rows << std::endl;
     }
-    {
-      boost::mutex::scoped_lock scoped_lock(lastScan_mutex_);
-      int col_counter = 0;
 
-      for (unsigned int i = 0; i < scanSize_; i++)
+    boost::mutex::scoped_lock scoped_lock(lastScan_mutex_);
+    int col_counter = 0;
+
+    for (unsigned int i = 0; i < scanSize_; i++)
+    {
+      if (ImageConverter::isScanRangeInCone(i))
       {
-        if (ImageConverter::isScanRangeInCone(i))
-        {
-          cv::Mat column = depth_image.col(col_counter);
-          cv::Scalar val(ImageConverter::convertScanRangeToCameraDepth(lastScan[i]));
-          column.setTo(val);
-          col_counter++;
-        }
+        cv::Mat column = depth_image.col(col_counter);
+        cv::Scalar val(ImageConverter::convertScanRangeToCameraDepth(lastScan[i]));
+        column.setTo(val);
+        col_counter++;
       }
     }
 
     // 
-    // Create Small Hue / Value
+    // Create Small Images 
     // 
     cv::Mat small_hue;
     cv::resize(hsv_split[0], small_hue, depth_image.size());
     cv::Mat small_val;
     cv::resize(hsv_split[2], small_val, depth_image.size());
+
+    cv::Mat small_bgr;
+    cv::resize(cv_ptr->image, small_bgr, depth_image.size());
+    cv::Mat small_lab;
+    cv::cvtColor(small_bgr, small_lab, cv::COLOR_BGR2Lab);
 
     // 
     // Merge Depth and RGB
@@ -144,57 +167,86 @@ public:
     channels.push_back(small_val);
     cv::merge(channels, final_image);
 
+    // SLIC
+    //
+    if (do_slic_)
+    {
+        IplImage *lab_image = new IplImage(small_lab);
+        /* Yield the number of superpixels and weight-factors from the user. */
+        int w = lab_image->width, h = lab_image->height;
+        int nr_superpixels = 200;
+        int nc = 40;
+ 
+        double step = sqrt((w * h) / (double) nr_superpixels);
+  
+        /* Perform the SLIC superpixel algorithm. */
+        Slic slic;
+        slic.generate_superpixels(lab_image, step, nc);
+        slic.create_connectivity(lab_image);
+
+        /* Do second level of clustering on the superpixels */
+        cv::Mat final_image_copy = final_image.clone();
+        IplImage *final_image_ipl = new IplImage(final_image_copy);
+        slic.two_level_cluster(final_image_ipl, 0, 1.5, 3, 0.5);
+        cvShowImage("result", final_image_ipl);
+        cvWaitKey(3);
+    }
+
+    if (do_graph_) {
+
     cv::Mat graph = cv::Mat(370, 255, CV_8UC3, cv::Scalar(255,255,255));
 
-    for ( int indexrow = 0; indexrow < small_hue.rows; ++indexrow ) {
-      for ( int indexcol = 0; indexcol < small_hue.cols; ++indexcol ) {
+      for ( int indexrow = 0; indexrow < small_hue.rows; ++indexrow ) {
+        for ( int indexcol = 0; indexcol < small_hue.cols; ++indexcol ) {
 
-        float color = small_hue.at<float>(indexrow,indexcol, 0);
-        color = roundf (color);
-        int colorindex = static_cast<int>(color);
-        // if (colorindex < 0){
-        //   colorindex = 0;
-        // }
-        // else if (colorindex > 360){
-        //   colorindex = 360;
-        // }
+          float color = small_hue.at<float>(indexrow,indexcol, 0);
+          color = roundf (color);
+          int colorindex = static_cast<int>(color);
+          // if (colorindex < 0){
+          //   colorindex = 0;
+          // }
+          // else if (colorindex > 360){
+          //   colorindex = 360;
+          // }
 
 
-        float depth = depth_image.at<float> (indexrow,indexcol,0);
-        depth = roundf (depth);
-        int depthindex = static_cast<int>(depth);
-        // if (depthindex < 0){
-        //   depthindex = 0;
-        // }
-        // else if (depthindex > 255){
-        //   depthindex = 255;
-        // }
+          float depth = depth_image.at<float> (indexrow,indexcol,0);
+          depth = roundf (depth);
+          int depthindex = static_cast<int>(depth);
+          // if (depthindex < 0){
+          //   depthindex = 0;
+          // }
+          // else if (depthindex > 255){
+          //   depthindex = 255;
+          // }
 
-        // std::cout << depthindex << std::endl;
+          // std::cout << depthindex << std::endl;
 
-        for (int adjcolor_index = colorindex+9; adjcolor_index <= colorindex + 15; ++adjcolor_index){
-          for (int adjdepth_index = depthindex+9; adjdepth_index <= depthindex + 15; ++adjdepth_index){
-            if (adjcolor_index >= 0 && adjcolor_index <= 360 && adjdepth_index >= 0 && adjdepth_index <= 255){
-              // std::cout << "adjcolor_index: " << adjcolor_index << std::endl;
-              cv::Vec3b pointcolor = graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index);
-              pointcolor = (0,0,0);
-              graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index) = pointcolor;
+          for (int adjcolor_index = colorindex+9; adjcolor_index <= colorindex + 15; ++adjcolor_index){
+            for (int adjdepth_index = depthindex+9; adjdepth_index <= depthindex + 15; ++adjdepth_index){
+              if (adjcolor_index >= 0 && adjcolor_index <= 360 && adjdepth_index >= 0 && adjdepth_index <= 255){
+                // std::cout << "adjcolor_index: " << adjcolor_index << std::endl;
+                cv::Vec3b pointcolor = graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index);
+                pointcolor = (0,0,0);
+                graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index) = pointcolor;
+              }
+              else{
+                ;
+              }
+
+              // if (tempindex > 0 || tempindex < 360){
+              //   cv::Vec3b tempcolor = graph.at<cv::Vec3b>(tempindex,depthindex);
+              //   tempcolor = (0,0,0);
+              //   graph.at<cv::Vec3b>(tempindex,depthindex) = tempcolor;
+              // }
             }
-            else{
-              ;
-            }
-
-            // if (tempindex > 0 || tempindex < 360){
-            //   cv::Vec3b tempcolor = graph.at<cv::Vec3b>(tempindex,depthindex);
-            //   tempcolor = (0,0,0);
-            //   graph.at<cv::Vec3b>(tempindex,depthindex) = tempcolor;
-            // }
           }
+
+          // std::cout << "Finished!" << colorindex << ", " << depthindex << std::endl;
+
         }
-
-        // std::cout << "Finished!" << colorindex << ", " << depthindex << std::endl;
-
       }
+    cv::imwrite("Screenshot.bmp",graph);
     }
 
     // Update GUI Window
@@ -203,13 +255,14 @@ public:
     // cv::imshow("value", hsv_split[2]);
     cv::imshow("depth", depth_image);
     cv::imshow("final_image", final_image);
-    cv::imwrite("Screenshot.bmp",graph);
+    // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
     
     // Output modified video stream
     image_pub_.publish(cv_ptr->toImageMsg());
   }
+
 
   int convertScanRangeToCameraDepth(float range)
   {
