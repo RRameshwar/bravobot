@@ -25,6 +25,9 @@ void Slic::clear_data() {
     distances.clear();
     centers.clear();
     center_counts.clear();
+    colours.clear();
+    modes.clear();
+    indexmap.clear();
 }
 
 /*
@@ -67,6 +70,9 @@ void Slic::init_data(IplImage *image) {
             center_counts.push_back(0);
         }
     }
+
+    /* Initialize colours */
+    colours(centers.size()); 
 }
 
 /*
@@ -341,15 +347,12 @@ void Slic::display_contours(IplImage *image, CvScalar colour) {
 }
 
 /*
- * Give the pixels of each cluster the same colour values. The specified colour
- * is the mean RGB colour per cluster.
+ * Computes the mean colours. It changes the colours attribute
  *
- * Input : The target image (IplImage*).
+ * Input: The target image (IplImage*)
  * Output: -
  */
-void Slic::colour_with_cluster_means(IplImage *image) {
-    vector<CvScalar> colours(centers.size());
-    
+void Slic::compute_cluster_means(IplImage *image) {
     /* Gather the colour values per cluster. */
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
@@ -368,7 +371,19 @@ void Slic::colour_with_cluster_means(IplImage *image) {
         colours[i].val[1] /= center_counts[i];
         colours[i].val[2] /= center_counts[i];
     }
+}
+
+/*
+ * Give the pixels of each cluster the same colour values. The specified colour
+ * is the mean RGB colour per cluster.
+ *
+ * Input : The target image (IplImage*).
+ * Output: -
+ */
+void Slic::colour_with_cluster_means(IplImage *image) {
     
+    Slic::compute_cluster_means(image);
+
     /* Fill in. */
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
@@ -396,8 +411,8 @@ double Slic::std(vector<double> v) {
 
 void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance) {
 
-    vector<CvScalar> colours(centers.size());
-    
+    /* Similar to compute cluster means, but is saving some values for zscoring */ 
+
     /* Gather the colour values per cluster. */
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
@@ -440,16 +455,34 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
     }
     
     clustering::Meanshift estimator(kernel_type, kernel_bandwidth, dim, mode_tolerance);
-    /* The cluster labels */
-    vec2dd modes;
-    /* The mapping of indexes of examples to modes */
-    vector<int> indexmap;
     estimator.FindModes(X, modes, indexmap);
+}
 
-    //
-    // Find Mode that has template color 
-    //
-    
+cvScalar calibrate_template_color(IplImage* image, IplImage* depth_channel) {
+    // Get Mean of the Modes
+    vector<CvScalar> mode_colours(modes.size());
+    vector<int> mode_counts(modes.size());
+    for (int i = 0; i < (int)colours.size(); ++i) {
+        mode_colours[indexmap[i]].val[0] += colours[i].val[0];
+        mode_colours[indexmap[i]].val[1] += colours[i].val[1];
+        mode_colours[indexmap[i]].val[2] += colours[i].val[2];
+        mode_counts[indexmap[i]] += 1;
+    } 
+    for (int i = 0; i < (int)mode_colours.size(); ++i) {
+        mode_colours[i].val[0] /= mode_counts[i];
+        mode_colours[i].val[1] /= mode_counts[i];
+        mode_colours[i].val[2] /= mode_counts[i];
+    } 
+
+}
+/*
+ * Based on a template color, it returns a mask image which has the cluster of interest white
+ *
+ * Input
+ * - image: to be transformed into black and white
+ * - template_color: color we are selecting for
+ */
+void compare_template_color(IplImage* image, cvScalar template_color) {
     // Get Mean of the Modes
     vector<CvScalar> mode_colours(modes.size());
     vector<int> mode_counts(modes.size());
@@ -473,35 +506,15 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
     }
     int our_mode = std::distance(colorspace_dist.begin(), std::min_element(colorspace_dist.begin(), colorspace_dist.end()));
 
-    // COLOR ALL CLUSTERS
-    for (int i = 0; i < (int)modes.size(); i++){
-        cout << i << endl;
-    }
-    CvScalar cvRed = {{0,114,178}};
-    CvScalar cvGreen = {{0,158,115}}; 
-    CvScalar cvBlue = {{213,94,0}};
-    CvScalar cvCyan = {{240,228,66}};
-    /*     cvCyan = (240,228,66) */
-    CvScalar cvYellow = {{86,180,233}};
-    CvScalar cvMagenta = {{204,121,167}};
     CvScalar cvWhite = {{255,255,255}};
     CvScalar cvBlack = {{0,0,0}};
-    vector<CvScalar> cvColors;
-    cvColors.push_back(cvRed);
-    cvColors.push_back(cvGreen);
-    cvColors.push_back(cvBlue);
-    cvColors.push_back(cvCyan);
-    cvColors.push_back(cvYellow);
-    cvColors.push_back(cvMagenta);
-    cvColors.push_back(cvWhite);
-    cvColors.push_back(cvBlack);
     /* Fill in. */
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
-            if (our_mode == indexmap[clusters[i][j]])
-            {
-                CvScalar ncolour = cvColors[indexmap[clusters[i][j]] % cvColors.size()];
-                cvSet2D(image, j, i, ncolour);
+            if (our_mode == indexmap[clusters[i][j]]) {
+                cvSet2D(image, j, i, cvWhite);
+            } else {
+                cvSet2D(image, j, i, cvBlack);
             }
         }
     }
