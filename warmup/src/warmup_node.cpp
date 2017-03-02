@@ -194,7 +194,6 @@ public:
         /* Do second level of clustering on the superpixels */
         cv::Mat final_image_copy = small_hsv.clone();
         IplImage *final_image_ipl = new IplImage(final_image_copy);
-        slic.colour_with_cluster_means(final_image_ipl);
         CvScalar template_color= {{220, 40, 128}}; // HSV 
         slic.two_level_cluster (final_image_ipl, template_color, 0, 1.5, 3, 0.5);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
