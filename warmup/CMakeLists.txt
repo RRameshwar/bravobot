@@ -138,6 +138,7 @@ add_executable(warmup_node src/warmup_node.cpp)
 add_executable(pcl_node src/pcl_node.cpp)
 add_executable(calibration_server src/calibration_server.cpp)
 add_executable(test_slic src/test_slic.cpp)
+add_executable(blob_detect src/blob_detect.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -159,6 +160,10 @@ target_link_libraries(test_slic
   ${catkin_LIBRARIES}
   slic
 )
+target_link_libraries(blob_detect
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############
