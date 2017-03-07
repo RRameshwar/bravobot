@@ -125,7 +125,10 @@ public:
         col_counter++;
       }
     }
-
+    cv::Mat small_depth_thresh;
+    inRange(small_threshold, 150, 255, small_depth_thresh);
+    cv::resize(small_threshold, small_threshold, threshold_image.size());
+    cv::resize(small_depth_thresh, small_depth_thresh, threshold_image.size());
 
 /*    cv::Mat hsv_split[3];
     cv::split(hsv_image, hsv_split);
@@ -209,6 +212,7 @@ public:
     // cv::imshow("value", hsv_split[2]);
 //    cv::imshow("depth", depth_image);
     cv::imshow("small_threshold", small_threshold);
+    cv::imshow("small_depth_thresh", small_depth_thresh);
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
@@ -292,8 +296,7 @@ public:
 
 };
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
   ros::init(argc, argv, "image_converter");
   ImageConverter ic;
   ros::spin();
