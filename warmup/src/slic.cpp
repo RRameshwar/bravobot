@@ -72,7 +72,7 @@ void Slic::init_data(IplImage *image) {
     }
 
     /* Initialize colours */
-    colours(centers.size()); 
+    colours.reserve(centers.size()); 
 }
 
 /*
@@ -413,7 +413,10 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
 
     /* Similar to compute cluster means, but is saving some values for zscoring */ 
 
-    /* Gather the colour values per cluster. */
+    //
+    // Compute Mean Color of Each Super Pixel
+    // 
+    // Sum
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
             int index = clusters[i][j];
@@ -424,7 +427,7 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
             colours[index].val[2] += colour.val[2];
         }
     }
-    
+    // Average
     vector<double> channel1(colours.size());
     vector<double> channel2(colours.size());
     vector<double> channel3(colours.size());
@@ -438,6 +441,9 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
 	channel3[i] = colours[i].val[2];
     }
 
+    //
+    // Compute Normalized Value (z-score) for better clustering
+    //
     double channel1_mu = Slic::mu(channel1);
     double channel1_std = Slic::std(channel1);
     double channel2_mu = Slic::mu(channel2);
@@ -453,26 +459,76 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
         data_point.push_back((colours[i].val[2] - channel3_mu)/channel3_std);
         X.push_back(data_point);
     }
-    
+   
+    //
+    // Meanshift clustering of average color of each super pixels, basically making groups of superpixels
+    //
     clustering::Meanshift estimator(kernel_type, kernel_bandwidth, dim, mode_tolerance);
     estimator.FindModes(X, modes, indexmap);
 }
 
-cvScalar calibrate_template_color(IplImage* image, IplImage* depth_channel) {
-    // Get Mean of the Modes
-    vector<CvScalar> mode_colours(modes.size());
-    vector<int> mode_counts(modes.size());
-    for (int i = 0; i < (int)colours.size(); ++i) {
-        mode_colours[indexmap[i]].val[0] += colours[i].val[0];
-        mode_colours[indexmap[i]].val[1] += colours[i].val[1];
-        mode_colours[indexmap[i]].val[2] += colours[i].val[2];
-        mode_counts[indexmap[i]] += 1;
+CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel) {
+   
+    cv::Mat depth_channel_mat(depth_channel); 
+    int lidar_row_index = static_cast<int>(0.33*depth_channel->height);
+    /* cv::Mat lidar_row = depth_channel_mat.row(lidar_row_index); */
+    /* const unsigned char* lidar_row = depth_channel_mat.ptr<unsigned char>(lidar_row_index); */
+  
+    int mode_idx;
+    vec2di modes_to_lidar(modes.size()); 
+    for (int col = 0; col < depth_channel->width; ++col) {
+        // construct arrays mapping depths to modes; preparing to average over depths for each mode
+        mode_idx = indexmap[clusters[col][lidar_row_index]];
+        /* modes_to_lidar[mode_idx].push_back(depth_channel_mat.at(lidar_row_index, col)); */
+        /* modes_to_lidar[mode_idx].push_back(lidar_row[col]); */
+        modes_to_lidar[mode_idx].push_back(depth_channel_mat.at<int>(10, 10));
     } 
-    for (int i = 0; i < (int)mode_colours.size(); ++i) {
-        mode_colours[i].val[0] /= mode_counts[i];
-        mode_colours[i].val[1] /= mode_counts[i];
-        mode_colours[i].val[2] /= mode_counts[i];
+
+    // average depth per mode
+    vector<double> avg_depth_per_mode(modes.size());
+    for (int mode_idx = 0; mode_idx < (int)modes.size(); mode_idx++) {
+        // compute average over array of depths for this mode
+        int avg_depth = std::accumulate(modes_to_lidar[mode_idx].begin(),
+                                        modes_to_lidar[mode_idx].end(),
+                                           0LL) / modes_to_lidar[mode_idx].size();
+                        
+        // assign average
+        avg_depth_per_mode[mode_idx] = avg_depth; 
+    }
+
+    int our_mode = std::max_element(avg_depth_per_mode.begin(), avg_depth_per_mode.end()) - avg_depth_per_mode.begin();
+
+    // Color 1/3 for testing purposes 
+    CvScalar cvWhite = {{255,255,255}};
+    for (int column = 0; column < image->width; ++column) {
+        cvSet2D(image, lidar_row_index, column, cvWhite);
     } 
+
+    // Color mode for validating
+    /* Fill in. */
+    for (int i = 0; i < image->width; i++) {
+        for (int j = 0; j < image->height; j++) {
+            if (our_mode == indexmap[clusters[i][j]]) {
+                cvSet2D(image, j, i, cvWhite);
+            }
+        }
+     } 
+   
+    return cvWhite; 
+    /* // Get Mean of the Modes */
+    /* vector<CvScalar> mode_colours(modes.size()); */
+    /* vector<int> mode_counts(modes.size()); */
+    /* for (int i = 0; i < (int)colours.size(); ++i) { */
+    /*     mode_colours[indexmap[i]].val[0] += colours[i].val[0]; */
+    /*     mode_colours[indexmap[i]].val[1] += colours[i].val[1]; */
+    /*     mode_colours[indexmap[i]].val[2] += colours[i].val[2]; */
+    /*     mode_counts[indexmap[i]] += 1; */
+    /* } */ 
+    /* for (int i = 0; i < (int)mode_colours.size(); ++i) { */
+    /*     mode_colours[i].val[0] /= mode_counts[i]; */
+    /*     mode_colours[i].val[1] /= mode_counts[i]; */
+    /*     mode_colours[i].val[2] /= mode_counts[i]; */
+    /* } */ 
 
 }
 /*
@@ -482,40 +538,40 @@ cvScalar calibrate_template_color(IplImage* image, IplImage* depth_channel) {
  * - image: to be transformed into black and white
  * - template_color: color we are selecting for
  */
-void compare_template_color(IplImage* image, cvScalar template_color) {
-    // Get Mean of the Modes
-    vector<CvScalar> mode_colours(modes.size());
-    vector<int> mode_counts(modes.size());
-    for (int i = 0; i < (int)colours.size(); ++i) {
-        mode_colours[indexmap[i]].val[0] += colours[i].val[0];
-        mode_colours[indexmap[i]].val[1] += colours[i].val[1];
-        mode_colours[indexmap[i]].val[2] += colours[i].val[2];
-        mode_counts[indexmap[i]] += 1;
-    } 
-    for (int i = 0; i < (int)mode_colours.size(); ++i) {
-        mode_colours[i].val[0] /= mode_counts[i];
-        mode_colours[i].val[1] /= mode_counts[i];
-        mode_colours[i].val[2] /= mode_counts[i];
-    } 
+/* void compare_template_color(IplImage* image, cvScalar template_color) { */
+/*     // Get Mean of the Modes */
+/*     vector<CvScalar> mode_colours(modes.size()); */
+/*     vector<int> mode_counts(modes.size()); */
+/*     for (int i = 0; i < (int)colours.size(); ++i) { */
+/*         mode_colours[indexmap[i]].val[0] += colours[i].val[0]; */
+/*         mode_colours[indexmap[i]].val[1] += colours[i].val[1]; */
+/*         mode_colours[indexmap[i]].val[2] += colours[i].val[2]; */
+/*         mode_counts[indexmap[i]] += 1; */
+/*     } */ 
+/*     for (int i = 0; i < (int)mode_colours.size(); ++i) { */
+/*         mode_colours[i].val[0] /= mode_counts[i]; */
+/*         mode_colours[i].val[1] /= mode_counts[i]; */
+/*         mode_colours[i].val[2] /= mode_counts[i]; */
+/*     } */ 
 
-    vector<double> colorspace_dist(mode_colours.size());
-    for (int i = 0; i < (int)mode_colours.size(); ++i) {
-        colorspace_dist[i] = sqrt(pow(template_color.val[0]-mode_colours[i].val[0],2)+
-                                  pow(template_color.val[1]-mode_colours[i].val[1],2));
-                                  /* pow(template_color.val[2]-mode_colours[i].val[2],2)); */
-    }
-    int our_mode = std::distance(colorspace_dist.begin(), std::min_element(colorspace_dist.begin(), colorspace_dist.end()));
+/*     vector<double> colorspace_dist(mode_colours.size()); */
+/*     for (int i = 0; i < (int)mode_colours.size(); ++i) { */
+/*         colorspace_dist[i] = sqrt(pow(template_color.val[0]-mode_colours[i].val[0],2)+ */
+/*                                   pow(template_color.val[1]-mode_colours[i].val[1],2)); */
+/*                                   /1* pow(template_color.val[2]-mode_colours[i].val[2],2)); *1/ */
+/*     } */
+/*     int our_mode = std::distance(colorspace_dist.begin(), std::min_element(colorspace_dist.begin(), colorspace_dist.end())); */
 
-    CvScalar cvWhite = {{255,255,255}};
-    CvScalar cvBlack = {{0,0,0}};
-    /* Fill in. */
-    for (int i = 0; i < image->width; i++) {
-        for (int j = 0; j < image->height; j++) {
-            if (our_mode == indexmap[clusters[i][j]]) {
-                cvSet2D(image, j, i, cvWhite);
-            } else {
-                cvSet2D(image, j, i, cvBlack);
-            }
-        }
-    }
-}
+/*     CvScalar cvWhite = {{255,255,255}}; */
+/*     CvScalar cvBlack = {{0,0,0}}; */
+/*     /1* Fill in. *1/ */
+/*     for (int i = 0; i < image->width; i++) { */
+/*         for (int j = 0; j < image->height; j++) { */
+/*             if (our_mode == indexmap[clusters[i][j]]) { */
+/*                 cvSet2D(image, j, i, cvWhite); */
+/*             } else { */
+/*                 cvSet2D(image, j, i, cvBlack); */
+/*             } */
+/*         } */
+/*     } */
+/* } */
