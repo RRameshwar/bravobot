@@ -192,12 +192,17 @@ public:
         slic.create_connectivity(lab_image);
 
         /* Do second level of clustering on the superpixels */
-        cv::Mat final_image_copy = small_hsv.clone();
+        cv::Mat final_image_copy = small_bgr.clone();
         IplImage *final_image_ipl = new IplImage(final_image_copy);
+        IplImage *depth_image_ipl = new IplImage(depth_image);
         CvScalar template_color= {{220, 40, 128}}; // HSV 
-        slic.two_level_cluster (final_image_ipl, template_color, 0, 1.5, 3, 0.5);
+        /* slic.two_level_cluster (final_image_ipl, template_color, 0, 1.5, 3, 0.5); */
+        CvScalar temp_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
-        cv::imshow("result", final_slic_image);
+        cv::Mat bigger_final_slic_image;
+        cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
+
+        cv::imshow("result", bigger_final_slic_image);
     }
 
     if (do_graph_) {
