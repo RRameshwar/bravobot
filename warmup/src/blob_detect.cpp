@@ -9,6 +9,7 @@
 #include <iostream>
 #include <warmup/LidarCone.h>
 #include <stdio.h>
+#include <geometry_msgs/Point.h>
 
 /* From test_slic.cpp */
 #include <opencv/cv.h>
@@ -37,6 +38,8 @@ class ImageConverter
   ros::Subscriber laser_sub_;
   ros::Publisher laser_pub_;
 
+  ros::Publisher com_pub_;
+
   float lastScan_[512];
   boost::mutex lastScan__mutex_;
   boost::mutex reconfig_mutex_;
@@ -64,6 +67,9 @@ public:
     // Subscribe to laser scan data
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
     laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
+
+    //Publishes position of center of pass
+    com_pub_ = nh_.advertise<geometry_msgs::Point>("/center_of_mass", 1);
 
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
@@ -111,8 +117,8 @@ public:
     float scale_factor = float(scan_width) / float(threshold_image.cols);
     cv::Mat depth_image(threshold_image.rows*scale_factor, scan_width, CV_8UC1);
 
-    cv::Mat small_threshold;
-    cv::resize(threshold_image, small_threshold, depth_image.size());
+    cv::Mat small_color_threshold;
+    cv::resize(threshold_image, small_color_threshold, depth_image.size());
 
     int col_counter = 0;
 
@@ -120,105 +126,48 @@ public:
     {
       if (ImageConverter::isScanRangeInCone(i))
       {
-        cv::Mat column = small_threshold.col(col_counter);
+        cv::Mat column = small_color_threshold.col(col_counter);
         column *= 1/lastScan_[i];
         col_counter++;
       }
     }
     cv::Mat small_depth_thresh;
-    inRange(small_threshold, 150, 255, small_depth_thresh);
-    cv::resize(small_threshold, small_threshold, threshold_image.size());
+    cv::Mat img_eroded;
+    cv::Mat img_dilated;
+    
+    inRange(small_color_threshold, 150, 255, small_depth_thresh);
+
+    dilate(small_depth_thresh, img_dilated, cv::Mat(), cv::Point(-1, -1), 1);
+    erode(img_dilated, img_eroded, cv::Mat(), cv::Point(-1, -1), 1);
+
+    cv::Point com = center_of_mass(img_eroded);
+
+    //Publish center of mass to /center_of_mass
+    geometry_msgs::Point com_output;
+    com_output.x = com.x;
+    com_output.y = com.y;
+    com_pub_.publish(com_output);
+
+    
+    // for viewing
+    com.x += img_eroded.cols/2;
+    com.y = -1*(com.y - img_eroded.rows/2);
+
+    cv::circle(img_eroded, com, 10, cv::Scalar(100), -1);
     cv::resize(small_depth_thresh, small_depth_thresh, threshold_image.size());
-
-/*    cv::Mat hsv_split[3];
-    cv::split(hsv_image, hsv_split);
-
-    // 
-    // Construct depth image
-    // 
-    // Skip this until the lidar data has caught up 
-    boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_);
-    if (!leftEdgeScanIndex_ || !rightEdgeScanIndex_)
-    {
-      return;
-    }
-    int scan_width = rightEdgeScanIndex_ - leftEdgeScanIndex_;
-    if (scan_width < 0)
-    {
-      return;
-    }
-    float scale_factor = float(scan_width) / float(hsv_image.cols);
-    cv::Mat depth_image(hsv_image.rows*scale_factor, scan_width, CV_8UC1);
-
-    if (verbose_)
-    {
-      std::cout << "leftEdgeScanIndex_:  " << leftEdgeScanIndex_ << std::endl;
-      std::cout << "rightEdgeScanIndex_:  " << rightEdgeScanIndex_ << std::endl;
-      std::cout << "scan size:  " << scanSize_ << std::endl;
-      std::cout << "scan width:  " << scan_width << std::endl;
-      std::cout << "scale_factor:  " << scale_factor << std::endl;
-      std::cout << depth_image.cols << std::endl;
-      std::cout << depth_image.rows << std::endl;
-    }
-
-    boost::mutex::scoped_lock scoped_lock(lastScan__mutex_);
-    int col_counter = 0;
-
-    for (unsigned int i = scanSize_; i > 0; i--)
-    {
-      if (ImageConverter::isScanRangeInCone(i))
-      {
-        cv::Mat column = depth_image.col(col_counter);
-        cv::Scalar val(ImageConverter::convertScanRangeToCameraDepth(lastScan_[i]));
-        column.setTo(val);
-        col_counter++;
-      }
-    }
-
-    // 
-    // Create Small Images 
-    // 
-    cv::Mat small_hue;
-    cv::resize(hsv_split[0], small_hue, depth_image.size());
-    cv::Mat small_sat;
-    cv::resize(hsv_split[1], small_sat, depth_image.size());
-    cv::Mat small_val;
-    cv::resize(hsv_split[2], small_val, depth_image.size());
-
-    cv::Mat small_bgr;
-    cv::resize(cv_ptr->image, small_bgr, depth_image.size());
-    cv::Mat small_lab;
-    cv::cvtColor(small_bgr, small_lab, cv::COLOR_BGR2Lab);
-
-    // 
-    // Merge Depth and RGB
-    // 
-    cv::Mat final_image;
-    cv::Mat small_hsv;
-    std::vector<cv::Mat> channels;
-    channels.push_back(small_hue);
-    channels.push_back(small_sat);
-    channels.push_back(small_val);
-    cv::merge(channels, small_hsv);
-    channels.push_back(depth_image);
-    cv::merge(channels, final_image);
-
-    // SLIC
-    /*/
-
-    // Update GUI Window
-    // cv::imshow("hsv", hsv_image);
-//    cv::imshow("hue", small_hue);
-    // cv::imshow("value", hsv_split[2]);
-//    cv::imshow("depth", depth_image);
-    cv::imshow("small_threshold", small_threshold);
+    cv::resize(img_eroded, img_eroded, threshold_image.size());
+    cv::resize(img_dilated, img_dilated, threshold_image.size());
+    
     cv::imshow("small_depth_thresh", small_depth_thresh);
+    cv::imshow("img_eroded", img_eroded);
+    cv::imshow("img_dilated", img_dilated);
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
     
     // Output modified video stream
-    image_pub_.publish(cv_ptr->toImageMsg());
+    
+
   }
 
 
@@ -294,7 +243,35 @@ public:
     laser_pub_.publish(msg);
   }
 
+  //Find center of mass of legs by taking the average of the white points in the image.
+  cv::Point center_of_mass (cv::Mat input){
+    float xsum = 0;
+    float ysum = 0;
+    float numPoints = 0;
+    float width = input.cols;
+    float height = input.rows;
+
+    for (int j = 0; j < height; j++){
+      for (int i = 0; i < width; i++){
+        cv::Scalar color = input.at<uchar>(cv::Point(i, j));
+        if (color.val[0] > 150){
+          xsum += i;
+          ysum += j;
+          numPoints ++;
+        }
+      }
+    }
+
+    cv::Point com;
+    com.x = (int)((xsum/numPoints) - (width/2));
+    com.y = (int)((-1*ysum/numPoints) + (height/2));
+
+    return com;
+  }
+
 };
+
+
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "image_converter");
