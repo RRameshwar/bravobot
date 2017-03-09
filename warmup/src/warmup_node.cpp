@@ -274,8 +274,8 @@ public:
     // cv::imshow("hsv", hsv_image);
 //    cv::imshow("hue", small_hue);
     // cv::imshow("value", hsv_split[2]);
-//    cv::imshow("depth", depth_image);
-    cv::imshow("final_image", final_image);
+   cv::imshow("depth", depth_image);
+    // cv::imshow("final_image", final_image);
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);

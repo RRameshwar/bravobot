@@ -499,7 +499,7 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         modes_to_lidar[mode_idx].push_back(temp);
     } 
 
-    // average depth per mode
+    // Finds the average depth per mode of clusters.
     vector<double> avg_depth_per_mode(modes.size());
     for (int mode_idx = 0; mode_idx < (int)modes.size(); mode_idx++) {
         // compute average over array of depths for this mode
@@ -507,9 +507,14 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         int avg_depth;
 
         if (modes_to_lidar[mode_idx].size() != 0){
-            avg_depth = std::accumulate(modes_to_lidar[mode_idx].begin(),
-                                        modes_to_lidar[mode_idx].end(),
-                                           0LL) / modes_to_lidar[mode_idx].size();
+            // avg_depth = std::accumulate(modes_to_lidar[mode_idx].begin(),
+            //                             modes_to_lidar[mode_idx].end(),
+            //                                0LL) / modes_to_lidar[mode_idx].size();
+
+            std::sort(modes_to_lidar[mode_idx].begin(), modes_to_lidar[mode_idx].end());
+            
+            avg_depth = modes_to_lidar[mode_idx][modes_to_lidar[mode_idx].size()/2];
+
         }
         else{
             avg_depth = 0;
