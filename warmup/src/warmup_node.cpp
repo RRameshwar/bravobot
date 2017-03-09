@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <vector>
+#include <algorithm>
 #include <float.h>
 using namespace std;
 
@@ -52,6 +53,8 @@ class ImageConverter
   bool do_slic_;
 
   int counter;
+
+  vector<CvScalar> template_color_vec;
 
 public:
   ImageConverter()
@@ -96,18 +99,18 @@ public:
       return;
     }
 
-    // 
+    //
     // Convert to HSV
-    // 
+    //
     cv::Mat hsv_image;
     cv::cvtColor(cv_ptr->image, hsv_image, cv::COLOR_BGR2HSV);
     cv::Mat hsv_split[3];
     cv::split(hsv_image, hsv_split);
 
-    // 
+    //
     // Construct depth image
-    // 
-    // Skip this until the lidar data has caught up 
+    //
+    // Skip this until the lidar data has caught up
     boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_);
     if (!leftEdgeScanIndex_ || !rightEdgeScanIndex_)
     {
@@ -153,9 +156,11 @@ public:
       }
     }
 
-    // 
-    // Create Small Images 
-    // 
+    cv::normalize(depth_image, depth_image, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+
+    //
+    // Create Small Images
+    //
     cv::Mat small_hue;
     cv::resize(hsv_split[0], small_hue, depth_image.size());
     cv::Mat small_sat;
@@ -168,9 +173,9 @@ public:
     cv::Mat small_lab;
     cv::cvtColor(small_bgr, small_lab, cv::COLOR_BGR2Lab);
 
-    // 
+    //
     // Merge Depth and RGB
-    // 
+    //
     cv::Mat final_image;
     cv::Mat small_hsv;
     std::vector<cv::Mat> channels;
@@ -188,24 +193,28 @@ public:
         IplImage *lab_image = new IplImage(small_lab);
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
-        int nr_superpixels = 130;
-        int nc = 10;
- 
+        int nr_superpixels = 250;
+        int nc = 80;
+
         double step = sqrt((w * h) / (double)nr_superpixels);
-  
+
         /* Perform the SLIC superpixel algorithm. */
         Slic slic;
         slic.generate_superpixels(lab_image, step, nc);
         slic.create_connectivity(lab_image);
 
         /* Do second level of clustering on the superpixels */
-        cv::Mat final_image_copy = small_lab.clone(); //Used to be BGR FFFFFFFF
+        cv::Mat final_image_copy = small_hsv.clone(); //Used to be BGR FFFFFFFF
         IplImage *final_image_ipl = new IplImage(final_image_copy);
         IplImage *depth_image_ipl = new IplImage(depth_image);
-        CvScalar template_color= {{220, 40, 128}}; // HSV 
+
+        // display superpixel contours
+        /* CvScalar cvBlack = {{0, 0, 0}}; */
+        /* slic.display_contours(final_image_ipl, cvBlack); */
 
         slic.two_level_cluster (final_image_ipl, template_color, 0, 0.8, 3, 0.3);
-        CvScalar temp_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
+        CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
+        template_color_vec.push_back(template_color);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
         cv::Mat bigger_final_slic_image;
         cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
@@ -279,7 +288,7 @@ public:
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
-    
+
     // Output modified video stream
     image_pub_.publish(cv_ptr->toImageMsg());
   }
@@ -287,15 +296,19 @@ public:
 
   int convertScanRangeToCameraDepth(float range)
   {
+    // Ignore ranges outside of 3 meters
     if (range == 0){
-      range = 1.0;
+      range = std::numeric_limits<float>::infinity();
     }
-    return int(128.0 / range);
+    range = std::min(range, static_cast<float>(3));
+
+    // function of depth_image_val vs range linear
+    return static_cast<int>(255 * (3-range) / float(3));
   }
 
   bool isScanRangeInCone(unsigned int scanRangeIndex)
   {
-    return scanRangeIndex < rightEdgeScanIndex_ && scanRangeIndex > leftEdgeScanIndex_; 
+    return scanRangeIndex < rightEdgeScanIndex_ && scanRangeIndex > leftEdgeScanIndex_;
   }
 
   static void processMouseEvent(int event, int x, int y, int, void* )
@@ -304,7 +317,7 @@ public:
   }
 
   void reconfigCb(warmup::LidarCone msg) {
-    boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_); 
+    boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_);
     rightEdgeScanIndex_ = msg.right_limit;
     leftEdgeScanIndex_ = msg.left_limit;
   }
@@ -318,7 +331,7 @@ public:
     /* rightEdgeScanIndex_ = size*7/12; */
     /* leftEdgeScanIndex_ = size*5/12; */
 
-    // 
+    //
     // Smooth the scan
     //
     float lidarDists[size];
@@ -337,7 +350,6 @@ public:
           }
           lastScan[i] = msg.ranges[i];
 
-          std::cout << "Last Scan: " << lastScan[i] << std::endl;
       }
     }
 
@@ -360,9 +372,9 @@ public:
       }
     }
 
-    // 
+    //
     // Publish
-    // 
+    //
     laser_pub_.publish(msg);
   }
 
