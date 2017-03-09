@@ -196,7 +196,8 @@ public:
         IplImage *final_image_ipl = new IplImage(final_image_copy);
         IplImage *depth_image_ipl = new IplImage(depth_image);
         CvScalar template_color= {{220, 40, 128}}; // HSV 
-        /* slic.two_level_cluster (final_image_ipl, template_color, 0, 1.5, 3, 0.5); */
+        
+        slic.two_level_cluster (final_image_ipl, template_color, 0, 1.5, 3, 0.5);
         CvScalar temp_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
         cv::Mat bigger_final_slic_image;
