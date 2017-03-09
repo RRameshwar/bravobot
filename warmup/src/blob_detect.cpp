@@ -131,11 +131,17 @@ public:
         col_counter++;
       }
     }
+
+    blech(small_color_threshold);
+
     cv::Mat small_depth_thresh;
     cv::Mat img_eroded;
     cv::Mat img_dilated;
+
+    std::cout << small_color_threshold.size() << std::endl;
     
-    inRange(small_color_threshold, 150, 255, small_depth_thresh);
+    inRange(small_color_threshold, cv::Scalar(180, 0, 0), cv::Scalar(255, 255, 255), small_depth_thresh);
+
 
     dilate(small_depth_thresh, img_dilated, cv::Mat(), cv::Point(-1, -1), 1);
     erode(img_dilated, img_eroded, cv::Mat(), cv::Point(-1, -1), 1);
@@ -150,7 +156,7 @@ public:
 
     
     // for viewing
-/*    com.x += img_eroded.cols/2;
+    com.x += img_eroded.cols/2;
     com.y = -1*(com.y - img_eroded.rows/2);
 
     cv::circle(img_eroded, com, 10, cv::Scalar(100), -1);
@@ -158,12 +164,13 @@ public:
     cv::resize(img_eroded, img_eroded, threshold_image.size());
     cv::resize(img_dilated, img_dilated, threshold_image.size());
     
+    //cv::imshow("threshold_image", threshold_image);
     cv::imshow("small_depth_thresh", small_depth_thresh);
     cv::imshow("img_eroded", img_eroded);
-    cv::imshow("img_dilated", img_dilated);
+    cv::imshow("color_threshold", threshold_image);
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
-    cv::waitKey(3);*/
+    cv::waitKey(3);
     
     // Output modified video stream
     
@@ -269,9 +276,40 @@ public:
     return com;
   }
 
+  void blech (cv::Mat input){
+    //normalize the image
+    //cv::Scalar mean, stddev;
+    //cv::meanStdDev(input, mean, stddev);
+    double min, max;
+    cv::minMaxLoc(input, &min, &max);
+    float width = input.cols;
+    float height = input.rows;
+
+    for (int j = 0; j < height; j++){
+      for (int i = 0; i < width; i++){
+        cv::Scalar color = input.at<uchar>(cv::Point(i, j));
+        
+        //color.val[0] = (color.val[0] - mean.val[0])*255/stddev.val[0]+127;
+        //color.val[0] = lim(color.val[0], 0, 255);
+        color.val[0] = 255*color.val[0]/max;
+
+        input.at<uchar>(cv::Point(i, j)) = color.val[0];
+        
+      }
+    }
+  }
+
+  float lim (float input, float min, float max){
+    if (input<min){
+      return min;
+    }
+    if (input>max){
+      return max;
+    }
+    return input;
+  }
+
 };
-
-
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "image_converter");
