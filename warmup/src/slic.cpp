@@ -493,6 +493,9 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         // float color = small_hue.at<float>(indexrow,indexcol, 0);
         int temp = depth_channel_mat.at<int>(lidar_row_index, col);
 
+        if (temp < 0) {
+            std::cout << "temp < 0!" << std::endl;
+        }
         modes_to_lidar[mode_idx].push_back(temp);
     } 
 
@@ -514,8 +517,11 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         
                         
         // assign average
-        avg_depth_per_mode[mode_idx] = avg_depth; 
+        avg_depth_per_mode[mode_idx] = avg_depth;
+
+        std::cout << "Avg Depth: " << avg_depth << std::endl;
     }
+
 
     int our_mode = std::max_element(avg_depth_per_mode.begin(), avg_depth_per_mode.end()) - avg_depth_per_mode.begin();
 
