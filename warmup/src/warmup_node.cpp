@@ -147,6 +147,7 @@ public:
       {
         cv::Mat column = depth_image.col(col_counter);
         cv::Scalar val(ImageConverter::convertScanRangeToCameraDepth(lastScan[i]));
+
         column.setTo(val);
         col_counter++;
       }
@@ -187,8 +188,8 @@ public:
         IplImage *lab_image = new IplImage(small_lab);
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
-        int nr_superpixels = 250;
-        int nc = 40;
+        int nr_superpixels = 130;
+        int nc = 10;
  
         double step = sqrt((w * h) / (double)nr_superpixels);
   
@@ -198,12 +199,12 @@ public:
         slic.create_connectivity(lab_image);
 
         /* Do second level of clustering on the superpixels */
-        cv::Mat final_image_copy = small_bgr.clone();
+        cv::Mat final_image_copy = small_lab.clone(); //Used to be BGR FFFFFFFF
         IplImage *final_image_ipl = new IplImage(final_image_copy);
         IplImage *depth_image_ipl = new IplImage(depth_image);
         CvScalar template_color= {{220, 40, 128}}; // HSV 
 
-        slic.two_level_cluster (final_image_ipl, template_color, 0, 1.0, 3, 0.5);
+        slic.two_level_cluster (final_image_ipl, template_color, 0, 0.8, 3, 0.3);
         CvScalar temp_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
         cv::Mat bigger_final_slic_image;
@@ -326,11 +327,17 @@ public:
       for(unsigned int i = 0; i < size; i++){
           double delta = fabs(msg.ranges[i] - lastScan[i]);
           if(delta < 0.3){
-              lidarDists[i] = msg.ranges[i];
-          } else{
+            lidarDists[i] = msg.ranges[i];
+          }
+          else if(std::isnan(msg.ranges[i])){
+              msg.ranges[i] = std::numeric_limits<double>::infinity();
+          }
+          else{
               lidarDists[i] = std::numeric_limits<double>::infinity();
           }
           lastScan[i] = msg.ranges[i];
+
+          std::cout << "Last Scan: " << lastScan[i] << std::endl;
       }
     }
 
