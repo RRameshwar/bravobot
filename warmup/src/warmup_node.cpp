@@ -118,7 +118,13 @@ public:
     {
       return;
     }
+
+    if (hsv_image.cols == 0){
+      // Catches division by zero
+        hsv_image.cols = 640;
+    }
     float scale_factor = float(scan_width) / float(hsv_image.cols);
+
     cv::Mat depth_image(hsv_image.rows*scale_factor, scan_width, CV_8UC1);
 
     if (verbose_)
@@ -184,7 +190,7 @@ public:
         int nr_superpixels = 250;
         int nc = 40;
  
-        double step = sqrt((w * h) / (double) nr_superpixels);
+        double step = sqrt((w * h) / (double)nr_superpixels);
   
         /* Perform the SLIC superpixel algorithm. */
         Slic slic;
@@ -196,8 +202,8 @@ public:
         IplImage *final_image_ipl = new IplImage(final_image_copy);
         IplImage *depth_image_ipl = new IplImage(depth_image);
         CvScalar template_color= {{220, 40, 128}}; // HSV 
-        
-        slic.two_level_cluster (final_image_ipl, template_color, 0, 1.5, 3, 0.5);
+
+        slic.two_level_cluster (final_image_ipl, template_color, 0, 1.0, 3, 0.5);
         CvScalar temp_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
         cv::Mat bigger_final_slic_image;
@@ -280,6 +286,9 @@ public:
 
   int convertScanRangeToCameraDepth(float range)
   {
+    if (range == 0){
+      range = 1.0;
+    }
     return int(128.0 / range);
   }
 

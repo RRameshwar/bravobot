@@ -457,7 +457,7 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
     vec2dd X;
 
     for (int i = 0; i < (int)colours.size(); i++) {
-        std::cout << "Here " << i << std::endl;
+
         vector<double> data_point;
         data_point.push_back((colours[i].val[0] - channel1_mu)/channel1_std);
         data_point.push_back((colours[i].val[1] - channel2_mu)/channel2_std);
@@ -486,14 +486,12 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         // construct arrays mapping depths to modes; preparing to average over depths for each mode
         int temp2 = clusters[col][lidar_row_index];
 
-        std::cout << "Size of indexmap: " << indexmap.size() << std::endl;
-
         mode_idx = indexmap[temp2];
         /* modes_to_lidar[mode_idx].push_back(depth_channel_mat.at(lidar_row_index, col)); */
         /* modes_to_lidar[mode_idx].push_back(lidar_row[col]); */
 
         // float color = small_hue.at<float>(indexrow,indexcol, 0);
-        int temp = depth_channel_mat.at<int>(10, 10);
+        int temp = depth_channel_mat.at<int>(lidar_row_index, col);
 
         modes_to_lidar[mode_idx].push_back(temp);
     } 
@@ -502,9 +500,18 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
     vector<double> avg_depth_per_mode(modes.size());
     for (int mode_idx = 0; mode_idx < (int)modes.size(); mode_idx++) {
         // compute average over array of depths for this mode
-        int avg_depth = std::accumulate(modes_to_lidar[mode_idx].begin(),
+        
+        int avg_depth;
+
+        if (modes_to_lidar[mode_idx].size() != 0){
+            avg_depth = std::accumulate(modes_to_lidar[mode_idx].begin(),
                                         modes_to_lidar[mode_idx].end(),
                                            0LL) / modes_to_lidar[mode_idx].size();
+        }
+        else{
+            avg_depth = 0;
+        }
+        
                         
         // assign average
         avg_depth_per_mode[mode_idx] = avg_depth; 
