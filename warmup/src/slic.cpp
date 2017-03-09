@@ -409,7 +409,7 @@ double Slic::std(vector<double> v) { //Standard deviation
     return stdev;
 }
 
-void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance) {
+void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance) {
 
     /* Similar to compute cluster means, but is saving some values for zscoring */
 
