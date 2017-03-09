@@ -150,7 +150,7 @@ public:
 
     
     // for viewing
-    com.x += img_eroded.cols/2;
+/*    com.x += img_eroded.cols/2;
     com.y = -1*(com.y - img_eroded.rows/2);
 
     cv::circle(img_eroded, com, 10, cv::Scalar(100), -1);
@@ -163,7 +163,7 @@ public:
     cv::imshow("img_dilated", img_dilated);
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
-    cv::waitKey(3);
+    cv::waitKey(3);*/
     
     // Output modified video stream
     
