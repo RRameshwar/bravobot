@@ -79,8 +79,8 @@ public:
 	void run (){
 		//SPeeeeeeeed
 		//ROTATionnnNNNnn
-		float speed = lim((dist_nearest_object-1)/5, -1, 1);
-		float angle = lim(((float)pos_person.x)/100, -1, 1);
+		float speed = lim((dist_nearest_object-1)/3, -1, 1);
+		float angle = lim(-1*((float)pos_person.x)/100, -1, 1);
 		std::cout << pos_person.x << std::endl;
 		geometry_msgs::Twist output;
 		output.linear.x=speed;

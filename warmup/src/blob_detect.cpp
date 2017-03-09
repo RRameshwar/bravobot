@@ -22,7 +22,7 @@ using namespace std;
 
 #include "slic.h"
 
-static const std::string OPENCV_WINDOW = "Image window";
+//static const std::string OPENCV_WINDOW = "Image window";
 
 // ROS -> OpenCV -> RGB-Depth?!
 class ImageConverter
@@ -72,8 +72,8 @@ public:
     com_pub_ = nh_.advertise<geometry_msgs::Point>("/center_of_mass", 1);
 
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
-    cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
-    cv::namedWindow(OPENCV_WINDOW);
+    //cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
+    //cv::namedWindow(OPENCV_WINDOW);
 
     verbose_ = false;
     do_graph_ = false;
@@ -86,7 +86,7 @@ public:
 
   ~ImageConverter()
   {
-    cv::destroyWindow(OPENCV_WINDOW);
+    //cv::destroyWindow(OPENCV_WINDOW);
   }
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
@@ -155,7 +155,7 @@ public:
     com_pub_.publish(com_output);
 
     
-    // for viewing
+    /*/ for viewing
     com.x += img_eroded.cols/2;
     com.y = -1*(com.y - img_eroded.rows/2);
 
@@ -171,7 +171,7 @@ public:
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
-    
+    */
     // Output modified video stream
     
 
