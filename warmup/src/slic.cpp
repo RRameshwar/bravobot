@@ -72,7 +72,7 @@ void Slic::init_data(IplImage *image) {
     }
 
     /* Initialize colours */
-    colours.reserve(centers.size()); 
+    colours.resize(centers.size()); 
 }
 
 /*
@@ -393,13 +393,13 @@ void Slic::colour_with_cluster_means(IplImage *image) {
     }
 }
 
-double Slic::mu(vector<double> v) {
+double Slic::mu(vector<double> v) { //Mean
     double sum = std::accumulate(v.begin(), v.end(), 0.0);
     double mean = sum / v.size();
     return mean;
 }
 
-double Slic::std(vector<double> v) {
+double Slic::std(vector<double> v) { //Standard deviation
     double mean = Slic::mu(v);
     vector<double> diff(v.size());
     transform(v.begin(), v.end(), diff.begin(),
@@ -417,16 +417,19 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
     // Compute Mean Color of Each Super Pixel
     // 
     // Sum
+
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
             int index = clusters[i][j];
             CvScalar colour = cvGet2D(image, j, i);
             
             colours[index].val[0] += colour.val[0];
+
             colours[index].val[1] += colour.val[1];
             colours[index].val[2] += colour.val[2];
         }
     }
+
     // Average
     vector<double> channel1(colours.size());
     vector<double> channel2(colours.size());
@@ -451,12 +454,15 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
     double channel3_mu = Slic::mu(channel3);
     double channel3_std = Slic::std(channel3);
     /* Convert into data format and zscore for Meanshift */ 
-    vec2dd X; 
+    vec2dd X;
+
     for (int i = 0; i < (int)colours.size(); i++) {
+        std::cout << "Here " << i << std::endl;
         vector<double> data_point;
         data_point.push_back((colours[i].val[0] - channel1_mu)/channel1_std);
         data_point.push_back((colours[i].val[1] - channel2_mu)/channel2_std);
         data_point.push_back((colours[i].val[2] - channel3_mu)/channel3_std);
+
         X.push_back(data_point);
     }
    
@@ -464,7 +470,7 @@ void Slic::two_level_cluster(IplImage *image, CvScalar template_color, int kerne
     // Meanshift clustering of average color of each super pixels, basically making groups of superpixels
     //
     clustering::Meanshift estimator(kernel_type, kernel_bandwidth, dim, mode_tolerance);
-    estimator.FindModes(X, modes, indexmap);
+    estimator.FindModes(X, modes, indexmap, 0);
 }
 
 CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel) {
@@ -478,10 +484,18 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
     vec2di modes_to_lidar(modes.size()); 
     for (int col = 0; col < depth_channel->width; ++col) {
         // construct arrays mapping depths to modes; preparing to average over depths for each mode
-        mode_idx = indexmap[clusters[col][lidar_row_index]];
+        int temp2 = clusters[col][lidar_row_index];
+
+        std::cout << "Size of indexmap: " << indexmap.size() << std::endl;
+
+        mode_idx = indexmap[temp2];
         /* modes_to_lidar[mode_idx].push_back(depth_channel_mat.at(lidar_row_index, col)); */
         /* modes_to_lidar[mode_idx].push_back(lidar_row[col]); */
-        modes_to_lidar[mode_idx].push_back(depth_channel_mat.at<int>(10, 10));
+
+        // float color = small_hue.at<float>(indexrow,indexcol, 0);
+        int temp = depth_channel_mat.at<int>(10, 10);
+
+        modes_to_lidar[mode_idx].push_back(temp);
     } 
 
     // average depth per mode
