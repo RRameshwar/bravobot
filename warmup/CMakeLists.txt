@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   dynamic_reconfigure
   message_generation
+  keyboard
 )
 
 ## System dependencies are found with CMake's conventions
@@ -138,6 +139,8 @@ add_executable(warmup_node src/warmup_node.cpp)
 add_executable(pcl_node src/pcl_node.cpp)
 add_executable(calibration_server src/calibration_server.cpp)
 add_executable(test_slic src/test_slic.cpp)
+add_executable(blob_detect src/blob_detect.cpp)
+add_executable(detect_person src/detect_person.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -159,6 +162,13 @@ target_link_libraries(test_slic
   ${catkin_LIBRARIES}
   slic
 )
+target_link_libraries(blob_detect
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(detect_person
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############

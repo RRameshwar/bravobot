@@ -9,6 +9,9 @@
 #include <iostream>
 #include <warmup/LidarCone.h>
 #include <stdio.h>
+#include <keyboard/Key.h>
+#include <time.h>
+#include <sys/time.h>
 
 /* From test_slic.cpp */
 #include <opencv/cv.h>
@@ -23,6 +26,27 @@ using namespace std;
 #include "slic.h"
 
 static const std::string OPENCV_WINDOW = "Image window";
+
+/* timing helpers */
+struct timeval get_time_now() {
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return now;
+}
+
+double timevaldiff(struct timeval *starttime, struct timeval *finishtime)
+{
+    double msec;
+    msec=(finishtime->tv_sec-starttime->tv_sec)*1000;
+    msec+=(finishtime->tv_usec-starttime->tv_usec)/1000;
+    return msec;
+}
+
+double get_time_elapsed(struct timeval t0) {
+    struct timeval now = get_time_now();
+    double time_elapsed = timevaldiff(&t0, &now);
+    return time_elapsed;
+}
 
 // ROS -> OpenCV -> RGB-Depth?!
 class ImageConverter
@@ -48,6 +72,10 @@ class ImageConverter
   // dynamic reconfigure
   ros::Subscriber reconfig_sub_;
 
+  // Keyboard Listener/Timers for Person Calibration
+  ros::Subscriber keyboard_sub_;
+  struct timeval time_start_;
+
   bool verbose_;
   bool do_graph_;
   bool do_slic_;
@@ -72,9 +100,10 @@ public:
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     cv::namedWindow(OPENCV_WINDOW);
 
+    keyboard_sub_ = nh_.subscribe<keyboard::Key>("/keyboard/keydown", 1, &ImageConverter::keyBoardCb, this);
     verbose_ = false;
     do_graph_ = false;
-    do_slic_ = true;
+    do_slic_ = false;
 
     /* Calibrated values for bravobot based on dynamic reconfigure test */
     rightEdgeScanIndex_ = 345;
@@ -212,7 +241,7 @@ public:
         /* CvScalar cvBlack = {{0, 0, 0}}; */
         /* slic.display_contours(final_image_ipl, cvBlack); */
 
-        slic.two_level_cluster (final_image_ipl, template_color, 0, 0.8, 3, 0.3);
+        slic.two_level_cluster (final_image_ipl, 0, 0.8, 3, 0.3);
         CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
         template_color_vec.push_back(template_color);
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
@@ -220,6 +249,11 @@ public:
         cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
 
         cv::imshow("result", bigger_final_slic_image);
+
+        double time_elapsed = get_time_elapsed(time_start_);
+        if (time_elapsed >= 5 * 1000) {
+            do_slic_ = false;
+        }
     }
 
     if (do_graph_) {
@@ -320,6 +354,12 @@ public:
     boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_);
     rightEdgeScanIndex_ = msg.right_limit;
     leftEdgeScanIndex_ = msg.left_limit;
+  }
+
+  void keyBoardCb(keyboard::Key msg) {
+    std::cout << "Key Pressed" << std::endl;
+    time_start_ = get_time_now();
+    do_slic_ = true;
   }
 
   void laserScanCallback(sensor_msgs::LaserScan msg)

@@ -1,0 +1,12 @@
+<launch>
+        <arg name="arduino_port" default="/dev/ttyACM0"/>
+
+	<node name="blob_detect" pkg="warmup" type="blob_detect"/>
+
+	<node name="detect_person" pkg="warmup" type="detect_person"/>
+	
+	<node name="hindbrain" pkg="rosserial_python" type="serial_node.py">
+	  <param name="port" value="$(arg arduino_port)"/>
+	</node>
+	
+</launch>
