@@ -13,11 +13,23 @@ few superpixels, it was possible for Lydia in the shadows to be fully segmented
 just by superpixels, without the need for a second step of clustering by Meanshift.
 This is better, because SLIC does do clustering with space in mind.
 
-The method of cropping the image to only the center third helps, especially when there are walls around or other objects that are big and contiguous.  Just adjust the number of superpixels appropriately.  Additional idea could be using the 1/3 method, and a way to filter out floor (by creating a labeled dataset of what is floor surfaces at Olin look like.  I was thinking we could drive around Olin and get the bottom the center part of the bottom 1/5 of the image and call that floor, for a segmentation algorithm to learn.  Then, most of the rest of the image is legs, in which case we can get reasonable Color Histograms to find upper/lowerbound limits for color thresholds for the HSV Person Follower to take.
+The method of cropping the image to only the center third helps, especially when
+there are walls around or other objects that are big and contiguous.
+Just adjust the number of superpixels appropriately.  Additional idea could be
+using the 1/3 method, and a way to filter out floor (by creating a labeled dataset
+of what is floor surfaces at Olin look like.  I was thinking we could drive around
+Olin and get the bottom the center part of the bottom 1/5 of the image and call
+that floor, for a segmentation algorithm to learn.  Then, most of the rest of the
+image is legs, in which case we can get reasonable Color Histograms to find
+upper/lowerbound limits for color thresholds for the HSV Person Follower to take.
 
 Issues...
 
-Segmenting Rocco's entire legs will be hard.  There's a lot of wrinkles and different tones to his pants, which are very close to the same color as the walls.  Because of the wrinkles, the superpixels are not predictably going to be large, rectangular segments corresponding to "thighs" and "calves". Working in the 10's of superpixels fails for Rocco.
+Segmenting Rocco's entire legs will be hard.  There's a lot of wrinkles and different
+tones to his pants, which are very close to the same color as the walls.
+Because of the wrinkles, the superpixels are not predictably going to be large,
+rectangular segments corresponding to "thighs" and "calves". Working in the
+10's of superpixels fails for Rocco.
 
   
 """ 
