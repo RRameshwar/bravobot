@@ -185,7 +185,11 @@ public:
       }
     }
 
+    // scale the values of depth image between 0 - 255
     cv::normalize(depth_image, depth_image, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+
+    // use otsu thresholding to only get the depths of things close to bot (presumably legs)
+    cv::threshold(depth_image, depth_image, 0, 255, cv::THRESH_BINARY+cv::THRESH_OTSU);
 
     //
     // Create Small Images
@@ -222,8 +226,8 @@ public:
         IplImage *lab_image = new IplImage(small_lab);
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
-        int nr_superpixels = 250;
-        int nc = 80;
+        int nr_superpixels = 10;
+        int nc = 10;
 
         double step = sqrt((w * h) / (double)nr_superpixels);
 
