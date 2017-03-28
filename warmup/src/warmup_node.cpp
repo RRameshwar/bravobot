@@ -237,8 +237,8 @@ public:
 
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
-        int nr_superpixels = 250;
-        int nc = 40;
+        int nr_superpixels = 20;
+        int nc = 5;
 
         double step = sqrt((w * h) / (double)nr_superpixels);
 
@@ -266,12 +266,12 @@ public:
         IplImage *depth_image_ipl = new IplImage(depth_image);
 
         // display superpixel contours
-        //CvScalar cvBlack = {{255, 255, 255}};
-        //slic.display_contours(final_image_ipl, cvBlack);
+        CvScalar cvBlack = {{230,159,0}};
+        slic.display_contours(final_image_ipl, cvBlack);
 
-        slic.two_level_cluster (final_image_ipl, 0, 0.9, 3, 0.3);
-        CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
-        template_color_vec.push_back(template_color);
+        /* slic.two_level_cluster (final_image_ipl, 0, 0.9, 3, 0.3); */
+        /* CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl); */
+        /* template_color_vec.push_back(template_color); */
          cv::Mat final_slic_image = cv::Mat(final_image_ipl);
         //cv::Mat bigger_final_slic_image;
 //        cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
