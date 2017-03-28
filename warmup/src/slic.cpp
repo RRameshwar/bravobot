@@ -460,10 +460,10 @@ void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_ban
 
         vector<double> data_point;
         data_point.push_back((colours[i].val[0] - channel1_mu)/channel1_std);
-        /* data_point.push_back((colours[i].val[1] - channel2_mu)/channel2_std); */
+        data_point.push_back((colours[i].val[1] - channel2_mu)/channel2_std);
         data_point.push_back((colours[i].val[2] - channel3_mu)/channel3_std);
-        data_point.push_back((centers[i][3] / image->width)); // x relative
-        data_point.push_back((centers[i][4] / image->height)); // y relative
+//        data_point.push_back((centers[i][3] / image->width)); // x relative
+//        data_point.push_back((centers[i][4] / image->height)); // y relative
 
         X.push_back(data_point);
     }
@@ -471,16 +471,14 @@ void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_ban
     //
     // Meanshift clustering of average color of each super pixels, basically making groups of superpixels
     //
-    clustering::Meanshift estimator(kernel_type, kernel_bandwidth, dim+1, mode_tolerance);
+    clustering::Meanshift estimator(kernel_type, kernel_bandwidth, dim, mode_tolerance);
     estimator.FindModes(X, modes, indexmap, 0);
 }
 
 CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel) {
 
-    cv::Mat depth_channel_mat(depth_channel);
+    cv::Mat depth_channel_mat(depth_channel);           //make a copy
     int lidar_row_index = static_cast<int>(0.33*depth_channel->height);
-    /* cv::Mat lidar_row = depth_channel_mat.row(lidar_row_index); */
-    /* const unsigned char* lidar_row = depth_channel_mat.ptr<unsigned char>(lidar_row_index); */
 
     int mode_idx;
     vec2di modes_to_lidar(modes.size());
@@ -489,19 +487,8 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         int temp2 = clusters[col][lidar_row_index];
 
         mode_idx = indexmap[temp2];
-        /* modes_to_lidar[mode_idx].push_back(depth_channel_mat.at(lidar_row_index, col)); */
-        /* modes_to_lidar[mode_idx].push_back(lidar_row[col]); */
-
-        // float color = small_hue.at<float>(indexrow,indexcol, 0);
         uint8_t temp = depth_channel_mat.at<uint8_t>(lidar_row_index, col);
 
-        if (temp < 0) {
-            std::cout << "temp < 0!" << std::endl;
-        }
-
-        if (temp > 255) {
-            std::cout << "temp > 255" << std::endl;
-        }
         modes_to_lidar[mode_idx].push_back(temp);
     }
 
@@ -533,7 +520,8 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         std::cout << "Avg Depth: " << avg_depth << std::endl;
     }
 
-    int our_mode = std::max_element(avg_depth_per_mode.begin(), avg_depth_per_mode.end()) - avg_depth_per_mode.begin();
+    // Maximum depth = Closest Mode
+    int closest_mode = std::max_element(avg_depth_per_mode.begin(), avg_depth_per_mode.end()) - avg_depth_per_mode.begin();
 
 
     // Color based on avg depth
@@ -549,7 +537,7 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
     /* /1* Fill in. *1/ */
     /* for (int i = 0; i < image->width; i++) { */
     /*     for (int j = 0; j < image->height; j++) { */
-    /*         if (our_mode == indexmap[clusters[i][j]]){ */
+    /*         if (closest_mode == indexmap[clusters[i][j]]){ */
     /*             cvSet2D(image, j, i, cvAvgDepthVec[indexmap[clusters[i][j]]]); */
     /*         } */
     /*     } */
@@ -567,7 +555,7 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
     /* Fill in. */
     for (int i = 0; i < image->width; i++) {
         for (int j = 0; j < image->height; j++) {
-            if (our_mode == indexmap[clusters[i][j]]) {
+            if (closest_mode == indexmap[clusters[i][j]]) {
                 cvSet2D(image, j, i, cvWhite);
             }
             /* else { */
@@ -591,7 +579,7 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
         mode_colours[i].val[2] /= mode_counts[i];
     }
 
-    return mode_colours[our_mode];
+    return mode_colours[closest_mode];
 }
 /*
  * Based on a template color, it returns a mask image which has the cluster of interest white
@@ -622,14 +610,14 @@ CvScalar Slic::calibrate_template_color(IplImage* image, IplImage* depth_channel
 /*                                   pow(template_color.val[1]-mode_colours[i].val[1],2)); */
 /*                                   /1* pow(template_color.val[2]-mode_colours[i].val[2],2)); *1/ */
 /*     } */
-/*     int our_mode = std::distance(colorspace_dist.begin(), std::min_element(colorspace_dist.begin(), colorspace_dist.end())); */
+/*     int closest_mode = std::distance(colorspace_dist.begin(), std::min_element(colorspace_dist.begin(), colorspace_dist.end())); */
 
     /* CvScalar cvWhite = {{255,255,255}}; */
     /* CvScalar cvBlack = {{0,0,0}}; */
     /* /1* Fill in. *1/ */
     /* for (int i = 0; i < image->width; i++) { */
     /*     for (int j = 0; j < image->height; j++) { */
-    /*         if (our_mode == indexmap[clusters[i][j]]) { */
+    /*         if (closest_mode == indexmap[clusters[i][j]]) { */
     /*             cvSet2D(image, j, i, cvWhite); */
     /*         } else { */
     /*             cvSet2D(image, j, i, cvBlack); */
