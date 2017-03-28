@@ -133,6 +133,7 @@ public:
     //
     cv::Mat hsv_image;
     cv::cvtColor(cv_ptr->image, hsv_image, cv::COLOR_BGR2HSV);
+
     cv::Mat hsv_split[3];
     cv::split(hsv_image, hsv_split);
 
@@ -215,15 +216,25 @@ public:
     channels.push_back(depth_image);
     cv::merge(channels, final_image);
 
+//    // Transform it into the C++ cv::Mat format
+//      cv::Mat image1(depth_image);
+
     // SLIC
     //
     if (do_slic_)
     {
-        IplImage *lab_image = new IplImage(small_lab);
+        //IplImage *lab_image = new IplImage(small_lab);
+
+        int starting_thirdx = 0.33*(small_lab.cols-1);
+        cv::Mat image0(small_lab);
+        cv::Rect myROI0(starting_thirdx, 0, (small_lab.cols-1)-(2*starting_thirdx), (small_lab.rows - 1));
+        cv::Mat lab_image2 = image0(myROI0);
+        IplImage *lab_image = new IplImage(lab_image2);
+
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
         int nr_superpixels = 250;
-        int nc = 80;
+        int nc = 40;
 
         double step = sqrt((w * h) / (double)nr_superpixels);
 
@@ -233,22 +244,35 @@ public:
         slic.create_connectivity(lab_image);
 
         /* Do second level of clustering on the superpixels */
-        cv::Mat final_image_copy = small_hsv.clone(); //Used to be BGR FFFFFFFF
+        cv::Mat final_image_copy1 = small_hsv.clone(); //Used to be BGR FFFFFFFF
+
+        //Cropping 1/3 of final_image_copy1
+        starting_thirdx = 0.33*(final_image_copy1.cols-1);
+        cv::Mat image1(final_image_copy1);
+        cv::Rect myROI1(starting_thirdx, 0, (final_image_copy1.cols-1)-(2*starting_thirdx), (final_image_copy1.rows - 1));
+        cv::Mat final_image_copy = image1(myROI1);
+
+        //Cropping 1/3 of depth_image
+        starting_thirdx = 0.33*(depth_image.cols-1);
+        cv::Mat image2(depth_image);
+        cv::Rect myROI2(starting_thirdx, 0, (depth_image.cols-1)-(2*starting_thirdx), (depth_image.rows - 1));
+        depth_image = image2(myROI2);
+
         IplImage *final_image_ipl = new IplImage(final_image_copy);
         IplImage *depth_image_ipl = new IplImage(depth_image);
 
         // display superpixel contours
-        /* CvScalar cvBlack = {{0, 0, 0}}; */
-        /* slic.display_contours(final_image_ipl, cvBlack); */
+        //CvScalar cvBlack = {{255, 255, 255}};
+        //slic.display_contours(final_image_ipl, cvBlack);
 
-        slic.two_level_cluster (final_image_ipl, 0, 0.8, 3, 0.3);
+        slic.two_level_cluster (final_image_ipl, 0, 0.9, 3, 0.3);
         CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
         template_color_vec.push_back(template_color);
-        cv::Mat final_slic_image = cv::Mat(final_image_ipl);
-        cv::Mat bigger_final_slic_image;
-        cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
+         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
+        //cv::Mat bigger_final_slic_image;
+//        cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
 
-        cv::imshow("result", bigger_final_slic_image);
+        cv::imshow("result", final_slic_image);
 
         double time_elapsed = get_time_elapsed(time_start_);
         if (time_elapsed >= 5 * 1000) {
@@ -314,8 +338,8 @@ public:
     }
 
     // Update GUI Window
-    // cv::imshow("hsv", hsv_image);
-//    cv::imshow("hue", small_hue);
+     cv::imshow("hsv", hsv_image);
+    //cv::imshow("hue", small_hue);
     // cv::imshow("value", hsv_split[2]);
    cv::imshow("depth", depth_image);
     // cv::imshow("final_image", final_image);
