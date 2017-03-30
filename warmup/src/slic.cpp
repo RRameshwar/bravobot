@@ -409,7 +409,7 @@ double Slic::std(vector<double> v) { //Standard deviation
     return stdev;
 }
 
-vector<CvScalar> Slic::get_leg_color(IplImage *image, IplImage* depth_image) {
+vector<CvScalar> Slic::get_leg_color(IplImage *image, IplImage* depth_channel) {
     //
     // Compute Mean Color of Each Super Pixel
     //
@@ -438,17 +438,18 @@ vector<CvScalar> Slic::get_leg_color(IplImage *image, IplImage* depth_image) {
     cv::Mat depth_channel_mat(depth_channel);           //make a copy
     int lidar_row_index = static_cast<int>(0.33*depth_channel->height); // get laser scan line that projects into image; it's hardcoded now
 
-    vector<CvScalar> leg_colours; 
+    vector<CvScalar> leg_colours;
     for (int col = 0; col < depth_channel->width; ++col) {
-        
+
         uint8_t depth_pix = depth_channel_mat.at<uint8_t>(lidar_row_index, col);
-        
-        // Since the depth image is thresholded, all non zero values correspond to areas of the image which have legs, presumably 
+
+        // Since the depth image is thresholded, all non zero values correspond to areas of the image which have legs, presumably
         if (depth_pix > 0) {
-             int superpixel_idx = clusters[col, lidar_row_index];
+             int superpixel_idx = clusters[col][lidar_row_index];
              leg_colours.push_back(colours[superpixel_idx]);
         }
     }
+    return leg_colours;
 }
 
 void Slic::two_level_cluster(IplImage *image, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance) {
