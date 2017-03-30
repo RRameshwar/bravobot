@@ -62,7 +62,7 @@ class PersonCalibrator(object):
 	gray_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2GRAY)
         hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
         
-        segments = slic(self.cv_image, n_segments=7, compactness=5)
+        segments = slic(self.cv_image, n_segments=10, compactness=50)
         edit = mark_boundaries(self.cv_image, segments) 
 
         X = superpixelation.get_mean_values(self.cv_image, segments) 

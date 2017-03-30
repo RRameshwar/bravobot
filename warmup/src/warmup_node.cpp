@@ -267,11 +267,20 @@ public:
         IplImage *depth_image_ipl = new IplImage(depth_image);
 
         // display superpixel contours
+<<<<<<< HEAD
         CvScalar cvBlack = {{230, 139, 0}};
         slic.display_contours(final_image_ipl, cvBlack);
         //slic.two_level_cluster (final_image_ipl, 0, 0.9, 3, 0.3);
         //CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
         //template_color_vec.push_back(template_color);
+=======
+        CvScalar cvBlack = {{230,159,0}};
+        slic.display_contours(final_image_ipl, cvBlack);
+
+        /* slic.two_level_cluster (final_image_ipl, 0, 0.9, 3, 0.3); */
+        /* CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl); */
+        /* template_color_vec.push_back(template_color); */
+>>>>>>> 1f8f34fc2c5f1e1c51ac31883e61d21ff247eaea
          cv::Mat final_slic_image = cv::Mat(final_image_ipl);
          //cv::Mat bigger_final_slic_image;
         //cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
