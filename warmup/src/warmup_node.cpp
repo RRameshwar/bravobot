@@ -188,7 +188,8 @@ public:
 
     // scale the values of depth image between 0 - 255
     cv::normalize(depth_image, depth_image, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-
+    // resize depth_image to full size
+    cv::resize(depth_image, depth_image, cv_ptr->image.size());
     // use otsu thresholding to only get the depths of things close to bot (presumably legs)
     cv::threshold(depth_image, depth_image, 0, 255, cv::THRESH_BINARY+cv::THRESH_OTSU);
 
@@ -228,8 +229,8 @@ public:
     if (do_slic_)
     {
         //IplImage *lab_image = new IplImage(small_lab);
-
-        int starting_thirdx = 0.33*(small_lab.cols-1);
+        //Cropping about 1/3 of lab_image
+        int starting_thirdx = 0.3*(small_lab.cols-1);
         cv::Mat image0(small_lab);
         cv::Rect myROI0(starting_thirdx, 0, (small_lab.cols-1)-(2*starting_thirdx), (small_lab.rows - 1));
         cv::Mat lab_image2 = image0(myROI0);
@@ -237,7 +238,7 @@ public:
 
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
-        int nr_superpixels = 250;
+        int nr_superpixels = 40;
         int nc = 40;
 
         double step = sqrt((w * h) / (double)nr_superpixels);
@@ -250,14 +251,14 @@ public:
         /* Do second level of clustering on the superpixels */
         cv::Mat final_image_copy1 = small_hsv.clone(); //Used to be BGR FFFFFFFF
 
-        //Cropping 1/3 of final_image_copy1
-        starting_thirdx = 0.33*(final_image_copy1.cols-1);
+        //Cropping about 1/3 of final_image_copy1
+        starting_thirdx = 0.3*(final_image_copy1.cols-1);
         cv::Mat image1(final_image_copy1);
         cv::Rect myROI1(starting_thirdx, 0, (final_image_copy1.cols-1)-(2*starting_thirdx), (final_image_copy1.rows - 1));
         cv::Mat final_image_copy = image1(myROI1);
 
-        //Cropping 1/3 of depth_image
-        starting_thirdx = 0.33*(depth_image.cols-1);
+        //Cropping about 1/3 of depth_image
+        starting_thirdx = 0.3*(depth_image.cols-1);
         cv::Mat image2(depth_image);
         cv::Rect myROI2(starting_thirdx, 0, (depth_image.cols-1)-(2*starting_thirdx), (depth_image.rows - 1));
         depth_image = image2(myROI2);
@@ -266,15 +267,14 @@ public:
         IplImage *depth_image_ipl = new IplImage(depth_image);
 
         // display superpixel contours
-        //CvScalar cvBlack = {{255, 255, 255}};
-        //slic.display_contours(final_image_ipl, cvBlack);
-
-        slic.two_level_cluster (final_image_ipl, 0, 0.9, 3, 0.3);
-        CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
-        template_color_vec.push_back(template_color);
+        CvScalar cvBlack = {{230, 139, 0}};
+        slic.display_contours(final_image_ipl, cvBlack);
+        //slic.two_level_cluster (final_image_ipl, 0, 0.9, 3, 0.3);
+        //CvScalar template_color = slic.calibrate_template_color(final_image_ipl, depth_image_ipl);
+        //template_color_vec.push_back(template_color);
          cv::Mat final_slic_image = cv::Mat(final_image_ipl);
-        //cv::Mat bigger_final_slic_image;
-//        cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
+         //cv::Mat bigger_final_slic_image;
+        //cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
 
         cv::imshow("result", final_slic_image);
 
