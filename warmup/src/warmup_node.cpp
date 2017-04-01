@@ -238,8 +238,8 @@ public:
 
         /* Yield the number of superpixels and weight-factors from the user. */
         int w = lab_image->width, h = lab_image->height;
-        int nr_superpixels = 40;
-        int nc = 40;
+        int nr_superpixels = 250;
+        int nc = 20;
 
         double step = sqrt((w * h) / (double)nr_superpixels);
 
@@ -297,7 +297,7 @@ public:
             vector<cv::Scalar> minmaxColours = ImageConverter::minmaxColourCalibration();
             cout << minmaxColours.size() << endl;
             cv::Mat threshold_image;
-            cv::inRange(cv_ptr->image, minmaxColours[0], minmaxColours[1], threshold_image);
+            cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
             cv::imshow("threshold", threshold_image);
         }
     }
@@ -416,13 +416,51 @@ public:
          channel2.push_back(it->val[1]);
          channel3.push_back(it->val[2]);
       }
+ 
+      std::sort(channel1.begin(), channel1.end());
+      std::sort(channel2.begin(), channel2.end());
+      std::sort(channel3.begin(), channel3.end());
+      // 10th and 90th percentile
+      int len = channel1.size();
+      int c1offset = static_cast<int>(len * 0.01);
+      int c1offsetupper = static_cast<int>(len * 0.003);
+      int c2offset = static_cast<int>(len * 0.01);
+      int c3offset = static_cast<int>(len * 0.01);
+      int minc1 = *(channel1.begin()+c1offset);
+      int maxc1 = *(channel1.end()-c1offsetupper); // HUE needs 99th
+      int minc2 = *(channel2.begin()+c2offset);
+      int maxc2 = *(channel2.end()-c2offset);
+      int minc3 = *(channel3.begin()+c3offset);
+      int maxc3 = *(channel3.end()-c3offset);
 
-      int minc1 = *min_element(channel1.begin(), channel1.end());
-      int maxc1 = *max_element(channel1.begin(), channel1.end());
-      int minc2 = *min_element(channel2.begin(), channel2.end());
-      int maxc2 = *max_element(channel2.begin(), channel2.end());
-      int minc3 = *min_element(channel3.begin(), channel3.end());
-      int maxc3 = *max_element(channel3.begin(), channel3.end());
+      cout << "5th and 95th" << endl;
+      cout << "(" << minc1 << ",";
+      cout << minc2 << ",";
+      cout << minc3 << ")" << endl;
+      cout << "(" << maxc1 << ",";
+      cout << maxc2 << ",";
+      cout << maxc3 << ")" << endl;
+
+      if (false) {
+      // 0th and 99 percentile
+      minc1 = *min_element(channel1.begin(), channel1.end());
+      maxc1 = *max_element(channel1.begin(), channel1.end());
+      minc2 = *min_element(channel2.begin(), channel2.end());
+      maxc2 = *max_element(channel2.begin(), channel2.end());
+      minc3 = *min_element(channel3.begin(), channel3.end());
+      maxc3 = *max_element(channel3.begin(), channel3.end());
+    
+      cout << "0th - 99th" << endl; 
+      cout << "(" << minc1 << ",";
+      cout << minc2 << ",";
+      cout << minc3 << ")" << endl;
+      cout << "(" << maxc1 << ",";
+      cout << maxc2 << ",";
+      cout << maxc3 << ")" << endl;
+
+      }
+      /* cv::Scalar min_colour(40, 0, 0); */
+      /* cv::Scalar max_colour(160, 255, 100); */
 
       cv::Scalar min_colour(minc1, minc2, minc3);
       cv::Scalar max_colour(maxc1, maxc2, maxc3);

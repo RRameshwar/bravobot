@@ -410,33 +410,48 @@ double Slic::std(vector<double> v) { //Standard deviation
 }
 
 vector<CvScalar> Slic::get_leg_color(IplImage *image, IplImage* depth_channel) {
-    //
-    // Compute Mean Color of Each Super Pixel
-    //
-    // Sum
-    for (int i = 0; i < image->width; i++) {
-        for (int j = 0; j < image->height; j++) {
-            int index = clusters[i][j];
-            CvScalar colour = cvGet2D(image, j, i);
+    
+    bool avg_superpixels = true; 
+    vector<vector<CvScalar> > colours2D(centers.size()); // vector is length of superpixels, each element a vector containing the colors of that superpixel
+    if (avg_superpixels) {
+        //
+        // Compute Mean Color of Each Super Pixel
+        //
+        // Sum
+        for (int i = 0; i < image->width; i++) {
+            for (int j = 0; j < image->height; j++) {
+                int index = clusters[i][j];
+                CvScalar colour = cvGet2D(image, j, i);
 
-            colours[index].val[0] += colour.val[0];
+                colours[index].val[0] += colour.val[0];
 
-            colours[index].val[1] += colour.val[1];
-            colours[index].val[2] += colour.val[2];
+                colours[index].val[1] += colour.val[1];
+                colours[index].val[2] += colour.val[2];
+            }
+        }
+        // Divide by the number of pixels per cluster to get the mean colour.
+        for (int i = 0; i < (int)colours.size(); i++) {
+            colours[i].val[0] /= center_counts[i];
+            colours[i].val[1] /= center_counts[i];
+            colours[i].val[2] /= center_counts[i];
         }
     }
-    // Divide by the number of pixels per cluster to get the mean colour.
-    for (int i = 0; i < (int)colours.size(); i++) {
-        colours[i].val[0] /= center_counts[i];
-        colours[i].val[1] /= center_counts[i];
-        colours[i].val[2] /= center_counts[i];
+    else {
+        for (int i = 0; i < image->width; i++) {
+            for (int j = 0; j < image->height; j++) {
+                int index = clusters[i][j];
+                CvScalar colour = cvGet2D(image, j, i);
+                colours2D[index].push_back(colour);
+            }
+        }
+ 
     }
 
     //
     // Match superpixels that have depth information
     //
     cv::Mat depth_channel_mat(depth_channel);           //make a copy
-    int lidar_row_index = static_cast<int>(0.33*depth_channel->height); // get laser scan line that projects into image; it's hardcoded now
+    int lidar_row_index = static_cast<int>(0.5*depth_channel->height); // get laser scan line that projects into image; it's hardcoded now
 
     vector<CvScalar> leg_colours;
     for (int col = 0; col < depth_channel->width; ++col) {
@@ -446,7 +461,13 @@ vector<CvScalar> Slic::get_leg_color(IplImage *image, IplImage* depth_channel) {
         // Since the depth image is thresholded, all non zero values correspond to areas of the image which have legs, presumably
         if (depth_pix > 0) {
              int superpixel_idx = clusters[col][lidar_row_index];
-             leg_colours.push_back(colours[superpixel_idx]);
+             if (avg_superpixels) {
+                 leg_colours.push_back(colours[superpixel_idx]);
+             }
+             else {
+                leg_colours.reserve(leg_colours.size() + distance(colours2D[superpixel_idx].begin(),colours2D[superpixel_idx].end()));
+                leg_colours.insert(leg_colours.end(),colours2D[superpixel_idx].begin(),colours2D[superpixel_idx].end());
+             }
         }
     }
     return leg_colours;
