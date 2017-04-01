@@ -74,6 +74,7 @@ class ImageConverter
 
   // Keyboard Listener/Timers for Person Calibration
   ros::Subscriber keyboard_sub_;
+  ros::Publisher color_pub_;
   struct timeval time_start_;
 
   bool verbose_;
@@ -96,6 +97,9 @@ public:
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
     laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
 
+    // TODO: LidarCone msg being used for min hue and max val... not so clear
+    color_pub_ = nh_.advertise<warmup::LidarCone>("/color_threshold", 1);
+    
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     cv::namedWindow(OPENCV_WINDOW);
@@ -294,11 +298,8 @@ public:
 
             // Extract color ranges for the legs we were calibrating onto
             // Perform Min/Max in the 3 dimensions in color space
-            vector<cv::Scalar> minmaxColours = ImageConverter::minmaxColourCalibration();
-            cout << minmaxColours.size() << endl;
-            cv::Mat threshold_image;
-            cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
-            cv::imshow("threshold", threshold_image);
+            // This function also publishes the threshold limit information
+            ImageConverter::minmaxColourCalibration();
         }
     }
 
@@ -360,13 +361,13 @@ public:
     }
 
     // Update GUI Window
-     cv::imshow("hsv", hsv_image);
-    //cv::imshow("hue", small_hue);
+    // cv::imshow("hsv", hsv_image);
+    // cv::imshow("hue", small_hue);
     // cv::imshow("value", hsv_split[2]);
-   cv::imshow("depth", depth_image);
+    // cv::imshow("depth", depth_image);
     // cv::imshow("final_image", final_image);
     // cv::imwrite("Screenshot.bmp", graph);
-    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    // cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
 
     // Output modified video stream
@@ -402,13 +403,14 @@ public:
     leftEdgeScanIndex_ = msg.left_limit;
   }
 
+  // Start Calibration upon keyboard press
   void keyBoardCb(keyboard::Key msg) {
     std::cout << "Key Pressed" << std::endl;
     time_start_ = get_time_now();
     do_slic_ = true;
   }
 
-  vector<cv::Scalar> minmaxColourCalibration() {
+  void minmaxColourCalibration() {
       // Construct 3 integer arrays for the 3 color channels
       vector<int> channel1, channel2, channel3;
       for (vector<CvScalar>::iterator it = template_color_vec.begin(); it != template_color_vec.end(); ++it) {
@@ -423,16 +425,18 @@ public:
       // 10th and 90th percentile
       int len = channel1.size();
       int c1offset = static_cast<int>(len * 0.01);
-      int c1offsetupper = static_cast<int>(len * 0.003);
       int c2offset = static_cast<int>(len * 0.01);
       int c3offset = static_cast<int>(len * 0.01);
       int minc1 = *(channel1.begin()+c1offset);
-      int maxc1 = *(channel1.end()-c1offsetupper); // HUE needs 99th
+      int maxc1 = *(channel1.end()-c1offset);
       int minc2 = *(channel2.begin()+c2offset);
       int maxc2 = *(channel2.end()-c2offset);
       int minc3 = *(channel3.begin()+c3offset);
       int maxc3 = *(channel3.end()-c3offset);
 
+      // turn true for debugging
+      if (false) {
+      // 0th and 99 percentile
       cout << "5th and 95th" << endl;
       cout << "(" << minc1 << ",";
       cout << minc2 << ",";
@@ -441,8 +445,6 @@ public:
       cout << maxc2 << ",";
       cout << maxc3 << ")" << endl;
 
-      if (false) {
-      // 0th and 99 percentile
       minc1 = *min_element(channel1.begin(), channel1.end());
       maxc1 = *max_element(channel1.begin(), channel1.end());
       minc2 = *min_element(channel2.begin(), channel2.end());
@@ -457,18 +459,14 @@ public:
       cout << "(" << maxc1 << ",";
       cout << maxc2 << ",";
       cout << maxc3 << ")" << endl;
-
       }
-      /* cv::Scalar min_colour(40, 0, 0); */
-      /* cv::Scalar max_colour(160, 255, 100); */
-
-      cv::Scalar min_colour(minc1, minc2, minc3);
-      cv::Scalar max_colour(maxc1, maxc2, maxc3);
-
-      vector<cv::Scalar> minmaxColours;
-      minmaxColours.push_back(min_colour);
-      minmaxColours.push_back(max_colour);
-      return minmaxColours;
+      
+      // Publish min hue and max val....
+      // TODO: don't use lidar cone not very clear 
+      warmup::LidarCone msg;
+      msg.left_limit = minc1;
+      msg.right_limit = maxc3;
+      color_pub_.publish(msg);
   }
 
   void laserScanCallback(sensor_msgs::LaserScan msg)
