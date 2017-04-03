@@ -1,67 +1,49 @@
-// #include "ros/ros.h"
+#include "ros/master.h"
 #include <stdio.h>
 #include <iostream>
 #include <boost/thread/thread.hpp>
 
-// int main(int argc, char **argv){
-// // ros::NodeHandle nh_;
-// // ros::Rate r(10);
-// char input[2] == NULL;
-// ros::init(argc, argv, "monitor");
+void load_programs(int passed_ran_calib, int passed_ran_track) {
 
-
-////Testing basic keyboard press break statement
-
-// std::cout << "Press Enter to Continue";
-// // std::cin.ignore();
-// std::cin.get(input,2);
-// std::cout << input << std::endl;
-
-
-// while (ros::ok()){
-// 	std::cout << "...";
-// 	std::cin.get(input,2);
-// 	if(input != NULL){
-// 		break;
-// 	}
-  	
-//   	ros::spinOnce();
-//   	r.sleep();
-
-// }
-
-// std::cout << "Yayy" << std::endl;
-
-// }
-
-
-void loop2(int passed_stop) {
-    while(true){
-	    if(passed_stop == 0){
-	        std::cout << "..." << std::endl;
-	        usleep(1000); //Pause after execution to allow main thread to set stop equal to 1 & print a statement.
-	    }
+	if (passed_ran_calib == 0){
+		std::cout << std::endl << "Talker node booting up." << std::endl;
+		std::system("rosrun talker talker");
 	}
+	if (passed_ran_track == 0){
+		std::cout << std::endl << "Listener node booting up." << std::endl;
+		std::system("rosrun listener listener");
+	}
+
+	std::cout << std::endl << "Program complete." << std::endl;
+
+//WORKING CODE
+ //    while(true){
+	//     if(passed_stop == 0){
+	//         std::cout << "..." << std::endl;
+	//         usleep(1000); //Pause after execution to allow main thread to set stop equal to 1 & print a statement.
+	//     }
+	// }
 }
 
-
-// ...
-
 int main(){
-	int stop = 0;
-    boost::thread t(loop2,stop); // Separate thread for loop.
+	int ran_calib = 0; //Did not run calibration
+	int ran_track = 0; //Did not run tracking
 
-    // Main thread waits for input character
+	boost::thread t(load_programs,ran_calib, ran_track);
+
+    // Main thread waits for "Enter" keypress.
     while (true){
 	    if (std::cin.get() == '\n'){
-
-	    std::cout << std::endl << std::endl << "Finished!" << std::endl;
-	    // Set the boolean to true. The loop thread will exit from the loop and terminate.
-	    break;
-
+			std::cout << std::endl << "Talker node shutting down now." << std::endl;
+		    std::system("rosnode kill talker talker");
+		}
+		if (std::cin.get() == '\n'){
+			std::cout << std::endl << "Listener node shutting down now." << std::endl;
+		    std::system("rosnode kill listener listener");
 		}
 	}
 
-	stop = 1;
-    return 0; 
+	ran_calib = 1; // Set the boolean to true. The loop thread will exit from the loop and terminate.
+	return 0;
+
 }
