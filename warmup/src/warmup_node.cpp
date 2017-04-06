@@ -74,6 +74,7 @@ class ImageConverter
 
   // Keyboard Listener/Timers for Person Calibration
   ros::Subscriber keyboard_sub_;
+  ros::Publisher color_pub_;
   struct timeval time_start_;
 
   bool verbose_;
@@ -95,6 +96,9 @@ public:
     // Subscribe to laser scan data
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
     laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
+
+    // TODO: LidarCone msg being used for min hue and max val... not so clear
+    color_pub_ = nh_.advertise<warmup::LidarCone>("/color_threshold", 1);
 
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
     cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
@@ -291,6 +295,7 @@ public:
 
 
             cv::imshow("threshold", threshold_image);
+
         }
     }
 
@@ -352,13 +357,13 @@ public:
     }
 
     // Update GUI Window
-     cv::imshow("hsv", hsv_image);
-    //cv::imshow("hue", small_hue);
+    // cv::imshow("hsv", hsv_image);
+    // cv::imshow("hue", small_hue);
     // cv::imshow("value", hsv_split[2]);
-   cv::imshow("depth", depth_image);
+    // cv::imshow("depth", depth_image);
     // cv::imshow("final_image", final_image);
     // cv::imwrite("Screenshot.bmp", graph);
-    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    // cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
 
     // Output modified video stream
@@ -402,13 +407,14 @@ public:
     leftEdgeScanIndex_ = msg.left_limit;
   }
 
+  // Start Calibration upon keyboard press
   void keyBoardCb(keyboard::Key msg) {
     std::cout << "Key Pressed" << std::endl;
     time_start_ = get_time_now();
     do_slic_ = true;
   }
 
-  vector<cv::Scalar> minmaxColourCalibration() {
+   vector<cv::Scalar> minmaxColourCalibration() {
       // Construct 3 integer arrays for the 3 color channels
       vector<int> channel1, channel2, channel3;
       for (vector<CvScalar>::iterator it = template_color_vec.begin(); it != template_color_vec.end(); ++it) {
@@ -416,7 +422,7 @@ public:
          channel2.push_back(it->val[1]);
          channel3.push_back(it->val[2]);
       }
- 
+
       std::sort(channel1.begin(), channel1.end());
       std::sort(channel2.begin(), channel2.end());
       std::sort(channel3.begin(), channel3.end());
@@ -440,26 +446,8 @@ public:
       cout << maxc2 << ",";
       cout << maxc3 << ")" << endl;
 
-      if (false) {
-      // 0th and 99 percentile
-      minc1 = *min_element(channel1.begin(), channel1.end());
-      maxc1 = *max_element(channel1.begin(), channel1.end());
-      minc2 = *min_element(channel2.begin(), channel2.end());
-      maxc2 = *max_element(channel2.begin(), channel2.end());
-      minc3 = *min_element(channel3.begin(), channel3.end());
-      maxc3 = *max_element(channel3.begin(), channel3.end());
-    
-      cout << "0th - 99th" << endl; 
-      cout << "(" << minc1 << ",";
-      cout << minc2 << ",";
-      cout << minc3 << ")" << endl;
-      cout << "(" << maxc1 << ",";
-      cout << maxc2 << ",";
-      cout << maxc3 << ")" << endl;
-
-      }
-//       cv::Scalar min_colour(0, 0, 0);
-//       cv::Scalar max_colour(40, 255, 100);
+//    cv::Scalar min_colour(0, 0, 0);
+//    cv::Scalar max_colour(40, 255, 100);
 
       cv::Scalar min_colour(minc1, minc2, minc3);
       cv::Scalar max_colour(maxc1, maxc2, maxc3);
@@ -468,6 +456,16 @@ public:
       minmaxColours.push_back(min_colour);
       minmaxColours.push_back(max_colour);
       return minmaxColours;
+
+
+
+      // Publish min hue and max val....
+      // TODO: don't use lidar cone not very clear 
+//      warmup::LidarCone msg;
+//      msg.left_limit = minc1;
+//      msg.right_limit = maxc3;
+//      color_pub_.publish(msg);
+
   }
 
   void laserScanCallback(sensor_msgs::LaserScan msg)
