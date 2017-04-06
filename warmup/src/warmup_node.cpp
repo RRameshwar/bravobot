@@ -106,8 +106,8 @@ public:
     do_slic_ = false;
 
     /* Calibrated values for bravobot based on dynamic reconfigure test */
-    rightEdgeScanIndex_ = 345;
-    leftEdgeScanIndex_ = 180;
+    rightEdgeScanIndex_ = 358;
+    leftEdgeScanIndex_ = 187;
   }
 
   ~ImageConverter()
@@ -228,12 +228,8 @@ public:
     //
     if (do_slic_)
     {
-        //IplImage *lab_image = new IplImage(small_lab);
         //Cropping about 1/3 of lab_image
-        int starting_thirdx = 0.3*(small_lab.cols-1);
-        cv::Mat image0(small_lab);
-        cv::Rect myROI0(starting_thirdx, 0, (small_lab.cols-1)-(2*starting_thirdx), (small_lab.rows - 1));
-        cv::Mat lab_image2 = image0(myROI0);
+        cv::Mat lab_image2 = cropMiddleThirds(small_lab);
         IplImage *lab_image = new IplImage(lab_image2);
 
         /* Yield the number of superpixels and weight-factors from the user. */
@@ -252,19 +248,13 @@ public:
         cv::Mat final_image_copy1 = small_hsv.clone(); //Used to be BGR FFFFFFFF
 
         //Cropping about 1/3 of final_image_copy1
-        starting_thirdx = 0.3*(final_image_copy1.cols-1);
-        cv::Mat image1(final_image_copy1);
-        cv::Rect myROI1(starting_thirdx, 0, (final_image_copy1.cols-1)-(2*starting_thirdx), (final_image_copy1.rows - 1));
-        cv::Mat final_image_copy = image1(myROI1);
+        cv::Mat final_image_copy = cropMiddleThirds(final_image_copy1);
 
         //Cropping about 1/3 of depth_image
-        starting_thirdx = 0.3*(depth_image.cols-1);
-        cv::Mat image2(depth_image);
-        cv::Rect myROI2(starting_thirdx, 0, (depth_image.cols-1)-(2*starting_thirdx), (depth_image.rows - 1));
-        depth_image = image2(myROI2);
+        cv::Mat depth_image_middleCropped = cropMiddleThirds(depth_image);
 
         IplImage *final_image_ipl = new IplImage(final_image_copy);
-        IplImage *depth_image_ipl = new IplImage(depth_image);
+        IplImage *depth_image_ipl = new IplImage(depth_image_middleCropped);
 
         // display superpixel contours
         CvScalar cvBlack = {{230,159,0}};
@@ -298,6 +288,8 @@ public:
             cout << minmaxColours.size() << endl;
             cv::Mat threshold_image;
             cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
+
+
             cv::imshow("threshold", threshold_image);
         }
     }
@@ -373,6 +365,14 @@ public:
     image_pub_.publish(cv_ptr->toImageMsg());
   }
 
+  cv::Mat cropMiddleThirds(cv::Mat imageToCrop)
+  {
+      int starting_third = 0.3*(imageToCrop.cols-1);
+      cv::Mat image0(imageToCrop);
+      cv::Rect myROI0(starting_third, 0, (imageToCrop.cols-1)-(2*starting_third), (imageToCrop.rows - 1));
+      cv::Mat croppedImage = image0(myROI0);
+      return croppedImage;
+  }
 
   int convertScanRangeToCameraDepth(float range)
   {
@@ -420,20 +420,19 @@ public:
       std::sort(channel1.begin(), channel1.end());
       std::sort(channel2.begin(), channel2.end());
       std::sort(channel3.begin(), channel3.end());
-      // 10th and 90th percentile
+      // 30th and 70th percentile
       int len = channel1.size();
-      int c1offset = static_cast<int>(len * 0.01);
-      int c1offsetupper = static_cast<int>(len * 0.003);
-      int c2offset = static_cast<int>(len * 0.01);
-      int c3offset = static_cast<int>(len * 0.01);
-      int minc1 = *(channel1.begin()+c1offset);
-      int maxc1 = *(channel1.end()-c1offsetupper); // HUE needs 99th
-      int minc2 = *(channel2.begin()+c2offset);
-      int maxc2 = *(channel2.end()-c2offset);
-      int minc3 = *(channel3.begin()+c3offset);
-      int maxc3 = *(channel3.end()-c3offset);
+      int c1offset = static_cast<int>(len * 0.3);
+      int c2offset = static_cast<int>(len * 0.3);
+      int c3offset = static_cast<int>(len * 0.3);
+      int minc1 = *(channel1.begin()+c1offset)-2;
+      int maxc1 = *(channel1.end()-1-c1offset)+2;
+      int minc2 = *(channel2.begin()+c2offset)-2;
+      int maxc2 = *(channel2.end()-1-c2offset)+2;
+      int minc3 = *(channel3.begin()+c3offset)-2;
+      int maxc3 = *(channel3.end()-1-c3offset)+2;
 
-      cout << "5th and 95th" << endl;
+      cout << "30th and 70th" << endl;
       cout << "(" << minc1 << ",";
       cout << minc2 << ",";
       cout << minc3 << ")" << endl;
@@ -459,8 +458,8 @@ public:
       cout << maxc3 << ")" << endl;
 
       }
-      /* cv::Scalar min_colour(40, 0, 0); */
-      /* cv::Scalar max_colour(160, 255, 100); */
+//       cv::Scalar min_colour(0, 0, 0);
+//       cv::Scalar max_colour(40, 255, 100);
 
       cv::Scalar min_colour(minc1, minc2, minc3);
       cv::Scalar max_colour(maxc1, maxc2, maxc3);

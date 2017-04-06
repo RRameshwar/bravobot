@@ -411,7 +411,7 @@ double Slic::std(vector<double> v) { //Standard deviation
 
 vector<CvScalar> Slic::get_leg_color(IplImage *image, IplImage* depth_channel) {
     
-    bool avg_superpixels = true; 
+    bool avg_superpixels = false;
     vector<vector<CvScalar> > colours2D(centers.size()); // vector is length of superpixels, each element a vector containing the colors of that superpixel
     if (avg_superpixels) {
         //
@@ -453,23 +453,40 @@ vector<CvScalar> Slic::get_leg_color(IplImage *image, IplImage* depth_channel) {
     cv::Mat depth_channel_mat(depth_channel);           //make a copy
     int lidar_row_index = static_cast<int>(0.5*depth_channel->height); // get laser scan line that projects into image; it's hardcoded now
 
+    CvScalar cvGreen = {{0,255,0}};
+
     vector<CvScalar> leg_colours;
+    vector<int> intersected_sp;
     for (int col = 0; col < depth_channel->width; ++col) {
 
         uint8_t depth_pix = depth_channel_mat.at<uint8_t>(lidar_row_index, col);
 
         // Since the depth image is thresholded, all non zero values correspond to areas of the image which have legs, presumably
         if (depth_pix > 0) {
-             int superpixel_idx = clusters[col][lidar_row_index];
-             if (avg_superpixels) {
-                 leg_colours.push_back(colours[superpixel_idx]);
-             }
-             else {
+            int superpixel_idx = clusters[col][lidar_row_index];
+            if (avg_superpixels) {
+                leg_colours.push_back(colours[superpixel_idx]);
+            }
+            else {
                 leg_colours.reserve(leg_colours.size() + distance(colours2D[superpixel_idx].begin(),colours2D[superpixel_idx].end()));
                 leg_colours.insert(leg_colours.end(),colours2D[superpixel_idx].begin(),colours2D[superpixel_idx].end());
-             }
+            }
+            intersected_sp.push_back(superpixel_idx);
         }
     }
+
+
+     // Fill in centred Green Super Pixel on the legs.
+     for (int i = 0; i < image->width; i++) {
+         for (int j = 0; j < image->height; j++) {
+             for (int k = 0; k < intersected_sp.size(); ++k) {
+                 if (clusters[i][j] == intersected_sp[k]) {
+                     cvSet2D(image, j, i, cvGreen);
+                 }
+             }
+         }
+    }
+
     return leg_colours;
 }
 
