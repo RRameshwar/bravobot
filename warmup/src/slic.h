@@ -89,6 +89,7 @@ class Slic {
         /* Clustering on top of superpixels, and finding template colors */
         void two_level_cluster(IplImage *image, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance); 
         CvScalar calibrate_template_color(IplImage *image, IplImage *depth_channel); 
+        vector<CvScalar> get_leg_color(IplImage *image, IplImage *depth_channel); 
         /* void compare_template_color(IplImage *image, CvScalar template_color); */
 	
 	/* helper stats functions */
