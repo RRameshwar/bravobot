@@ -307,7 +307,6 @@ public:
             cv::Mat threshold_right_crop = cropRightThird(threshold_image);
 
             cv::imshow("threshold", threshold_image);
-
             int left_whitepixel = cv::countNonZero(threshold_left_crop);
             int mid_whitepixel = cv::countNonZero(threshold_mid_crop);
             int right_whitepixel = cv::countNonZero(threshold_right_crop);
@@ -317,13 +316,13 @@ public:
             outer_and_inner_whitepixels.push_back(outer_whitepixel);
             outer_and_inner_whitepixels.push_back(mid_whitepixel);
 
-            cout << "BEFORE: 30th and 70th" << endl;
-            cout << "(" << minmaxColours[0].val[0] << ",";
-            cout << minmaxColours[0].val[1] << ",";
-            cout << minmaxColours[0].val[2] << ")" << endl;
-            cout << "(" << minmaxColours[1].val[0] << ",";
-            cout << minmaxColours[1].val[1] << ",";
-            cout << minmaxColours[1].val[2] << ")" << endl;
+            //cout << "BEFORE: 30th and 70th" << endl;
+            //cout << "(" << minmaxColours[0].val[0] << ",";
+            //cout << minmaxColours[0].val[1] << ",";
+            //cout << minmaxColours[0].val[2] << ")" << endl;
+            //cout << "(" << minmaxColours[1].val[0] << ",";
+            //cout << minmaxColours[1].val[1] << ",";
+            //cout << minmaxColours[1].val[2] << ")" << endl;
 
             for (int i=0; i<6; i++)
             {
@@ -331,7 +330,7 @@ public:
                 int param2 = i % 3; // cycle between hue, sat, val
 
                 bool keep_tuning_hsv = true;
-                int increment = 12;
+                int increment = 20;
                 while (keep_tuning_hsv)
                 {
                     if (param1) // if doing upper
@@ -355,17 +354,17 @@ public:
                         cout << "moving on to next parameter" << endl;
                     }
 
-                    cout << "AFTER: 30th and 70th" << endl;
-                    cout << "(" << minmaxColours[0].val[0] << ",";
-                    cout << minmaxColours[0].val[1] << ",";
-                    cout << minmaxColours[0].val[2] << ")" << endl;
-                    cout << "(" << minmaxColours[1].val[0] << ",";
-                    cout << minmaxColours[1].val[1] << ",";
-                    cout << minmaxColours[1].val[2] << ")" << endl;
-
+                    //cout << "AFTER: 30th and 70th" << endl;
+                    //cout << "(" << minmaxColours[0].val[0] << ",";
+                    //cout << minmaxColours[0].val[1] << ",";
+                    //cout << minmaxColours[0].val[2] << ")" << endl;
+                    //cout << "(" << minmaxColours[1].val[0] << ",";
+                    //cout << minmaxColours[1].val[1] << ",";
+                    //cout << minmaxColours[1].val[2] << ")" << endl;
                 }
-
             }
+            cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
+            cv::imshow("UpdatedThreshold", threshold_image);
         }
     }
 
@@ -498,8 +497,8 @@ public:
       cout << "outer: " << outer_whitepixel_new << " inner: " << mid_whitepixel_new << endl;
       cout << "outer is darker: " << (outer_whitepixel_new < 0.9*outer_and_inner_whitepixels[0]) << endl;
       cout << "middle is more or equally white: " << !(mid_whitepixel_new < 0.9*outer_and_inner_whitepixels[1]) << endl;
-      cv::imshow("threshold_candidate", threshold_image);
-      cv::waitKey(0); // show image until button press
+      //cv::imshow("threshold_candidate", threshold_image);
+      //cv::waitKey(0); // show image until button press
       if((outer_whitepixel_new < 0.9*outer_and_inner_whitepixels[0]) && // if new outer is darker
             !(mid_whitepixel_new < 0.9*outer_and_inner_whitepixels[1])) // if new middle is more or equally white
       {
@@ -513,7 +512,6 @@ public:
       {
           return false;
       }
-
   }
   int convertScanRangeToCameraDepth(float range)
   {
