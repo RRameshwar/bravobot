@@ -24,7 +24,7 @@ def main():
                                transitions={'timeout':'timeout',
                                             'button':'Calibrate'})
         smach.StateMachine.add('Calibrate', Calibrate(), 
-                               transitions={'person':'found_person',
+                               transitions={'person':'Standby',
                                             'no_person':'Standby'})
 
     # Execute SMACH plan

@@ -54,6 +54,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  ColorThreshold.msg
   LidarCone.msg
 )
 
@@ -75,6 +76,7 @@ add_message_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################
@@ -144,6 +146,7 @@ add_executable(detect_person src/detect_person.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(warmup_node ${PROJECT_NAME}_gencfg)
+add_dependencies(warmup_node ${PROJECT_NAME}_generate_messages_cpp)
 
 
 ## Specify libraries to link a library or executable target against

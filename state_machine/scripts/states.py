@@ -75,8 +75,9 @@ class Calibrate(smach.State):
 
     def state_init(self):
         # initialize state - on state start
-        self.start_calibrate = rospy.Publisher('/calibrate', Bool, queue_size=10)
-        self.person_sub = rospy.Subscriber('/person', Bool, self.on_person)
+        self.person = False
+        self.start_calibrate = rospy.Publisher('/calibrator/start', Bool, queue_size=10)
+        self.person_sub = rospy.Subscriber('/calibrator/stop', Bool, self.on_person)
         time.sleep(0.5) # give publisher time to initialize
         self.start_calibrate.publish(Bool(True)) # publish to start calibrate nodes
 

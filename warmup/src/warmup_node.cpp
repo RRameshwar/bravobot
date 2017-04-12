@@ -7,9 +7,13 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <boost/thread/mutex.hpp>
 #include <iostream>
-#include <warmup/LidarCone.h>
+#include "warmup/ColorThreshold.h"
+#include "warmup/LidarCone.h"
+//#include <warmup/ColorThreshold.h>
+#include <geometry_msgs/Vector3.h>
+#include <std_msgs/Bool.h>
 #include <stdio.h>
-#include <keyboard/Key.h>
+//#include <keyboard/Key.h>
 #include <time.h>
 #include <sys/time.h>
 
@@ -21,6 +25,8 @@
 #include <vector>
 #include <algorithm>
 #include <float.h>
+#include <geometry_msgs/Vector3.h>
+
 using namespace std;
 
 #include "slic.h"
@@ -49,18 +55,16 @@ double get_time_elapsed(struct timeval t0) {
 }
 
 // ROS -> OpenCV -> RGB-Depth?!
-class ImageConverter
+class Calibrator
 {
   ros::NodeHandle nh_;
 
   // Camera
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
-  image_transport::Publisher image_pub_;
 
   // Lidar
   ros::Subscriber laser_sub_;
-  ros::Publisher laser_pub_;
 
   float lastScan[512];
   boost::mutex lastScan_mutex_;
@@ -73,48 +77,58 @@ class ImageConverter
   ros::Subscriber reconfig_sub_;
 
   // Keyboard Listener/Timers for Person Calibration
-  ros::Subscriber keyboard_sub_;
+  ros::Subscriber start_sub_;
+  ros::Publisher done_pub_;
+
   ros::Publisher color_pub_;
   struct timeval time_start_;
 
   bool verbose_;
-  bool do_graph_;
   bool do_slic_;
-
-  int counter;
 
   vector<CvScalar> template_color_vec;
 
 public:
-  ImageConverter()
+  Calibrator()
     : it_(nh_)
   {
-    // Subscribe to input video feed and publish output video feed
-    image_sub_ = it_.subscribe("/image_raw", 1, &ImageConverter::imageCb, this);
-    image_pub_ = it_.advertise("/image_converter/output_video", 1);
-
-    // Subscribe to laser scan data
-    laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
-    laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
-
     // TODO: LidarCone msg being used for min hue and max val... not so clear
-    color_pub_ = nh_.advertise<warmup::LidarCone>("/color_threshold", 1);
+    color_pub_ = nh_.advertise<warmup::ColorThreshold>("/color_threshold", 1);
 
-    reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
-    cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
-    cv::namedWindow(OPENCV_WINDOW);
-
-    keyboard_sub_ = nh_.subscribe<keyboard::Key>("/keyboard/keydown", 1, &ImageConverter::keyBoardCb, this);
+    start_sub_ = nh_.subscribe<std_msgs::Bool>("start", 1, &Calibrator::Start_cb, this);
+    done_pub_ = nh_.advertise<std_msgs::Bool>("stop", 10);
     verbose_ = false;
-    do_graph_ = false;
-    do_slic_ = false;
+    do_slic_ = true;
 
     /* Calibrated values for bravobot based on dynamic reconfigure test */
     rightEdgeScanIndex_ = 358;
     leftEdgeScanIndex_ = 187;
   }
 
-  ~ImageConverter()
+  void bringup(){
+    // Subscribe to input video feed and publish output video feed
+    image_sub_ = it_.subscribe("/image_raw", 1, &Calibrator::imageCb, this);
+    // Subscribe to laser scan data
+    laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &Calibrator::laserScanCallback, this);
+
+    reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &Calibrator::reconfigCb, this);
+    //cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::processMouseEvent);
+    //cv::namedWindow(OPENCV_WINDOW);
+    do_slic_ = true;
+  }
+
+  void sleep(bool condition){
+      std::cout << "calibration complete" << std::endl;
+      std_msgs::Bool msg;
+      msg.data = condition;
+      done_pub_.publish(msg);
+      image_sub_.shutdown();
+      laser_sub_.shutdown();
+      reconfig_sub_.shutdown();
+      //cv::destroyWindow(OPENCV_WINDOW);
+  }
+
+  ~Calibrator()
   {
     cv::destroyWindow(OPENCV_WINDOW);
   }
@@ -180,10 +194,10 @@ public:
 
     for (unsigned int i = scanSize_; i > 0; i--)
     {
-      if (ImageConverter::isScanRangeInCone(i))
+      if (Calibrator::isScanRangeInCone(i))
       {
         cv::Mat column = depth_image.col(col_counter);
-        cv::Scalar val(ImageConverter::convertScanRangeToCameraDepth(lastScan[i]));
+        cv::Scalar val(Calibrator::convertScanRangeToCameraDepth(lastScan[i]));
 
         column.setTo(val);
         col_counter++;
@@ -278,7 +292,7 @@ public:
         //cv::Mat bigger_final_slic_image;
 //        cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
 
-        cv::imshow("result", final_slic_image);
+        //cv::imshow("result", final_slic_image);
 
         // Once calibration period has completed
         double time_elapsed = get_time_elapsed(time_start_);
@@ -288,7 +302,7 @@ public:
 
             // Extract color ranges for the legs we were calibrating onto
             // Perform Min/Max in the 3 dimensions in color space
-            vector<cv::Scalar> minmaxColours = ImageConverter::minmaxColourCalibration();
+            vector<cv::Scalar> minmaxColours = Calibrator::minmaxColourCalibration();
             cout << minmaxColours.size() << endl;
 
             // Widening the range of HSV to maximize white pixels at initialization
@@ -306,7 +320,7 @@ public:
             cv::Mat threshold_left_crop = cropLeftThird(threshold_image);
             cv::Mat threshold_right_crop = cropRightThird(threshold_image);
 
-            cv::imshow("threshold", threshold_image);
+            //cv::imshow("threshold", threshold_image);
             int left_whitepixel = cv::countNonZero(threshold_left_crop);
             int mid_whitepixel = cv::countNonZero(threshold_mid_crop);
             int right_whitepixel = cv::countNonZero(threshold_right_crop);
@@ -363,80 +377,27 @@ public:
                     //cout << minmaxColours[1].val[2] << ")" << endl;
                 }
             }
-            cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
-            cv::imshow("UpdatedThreshold", threshold_image);
+            //cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
+            //cv::imshow(OPENCV_WINDOW, threshold_image);
+            cout << endl << "AFTER: 30th and 70th" << endl;
+            cout << "(" << minmaxColours[0].val[0] << ",";
+            cout << minmaxColours[0].val[1] << ",";
+            cout << minmaxColours[0].val[2] << ")" << endl;
+            cout << "(" << minmaxColours[1].val[0] << ",";
+            cout << minmaxColours[1].val[1] << ",";
+            cout << minmaxColours[1].val[2] << ")" << endl << endl;
+            warmup::ColorThreshold msg;
+            msg.min.x = minmaxColours[0].val[0];
+            msg.min.y = minmaxColours[0].val[1];
+            msg.min.z = minmaxColours[0].val[2];
+            msg.max.x = minmaxColours[1].val[0];
+            msg.max.y = minmaxColours[1].val[1];
+            msg.max.z = minmaxColours[1].val[2];
+            color_pub_.publish(msg);
+            sleep(true);
         }
     }
-
-    if (do_graph_) {
-
-    cv::Mat graph = cv::Mat(370, 255, CV_8UC3, cv::Scalar(255,255,255));
-
-      for ( int indexrow = 0; indexrow < small_hue.rows; ++indexrow ) {
-        for ( int indexcol = 0; indexcol < small_hue.cols; ++indexcol ) {
-
-          float color = small_hue.at<float>(indexrow,indexcol, 0);
-          color = roundf (color);
-          int colorindex = static_cast<int>(color);
-          // if (colorindex < 0){
-          //   colorindex = 0;
-          // }
-          // else if (colorindex > 360){
-          //   colorindex = 360;
-          // }
-
-
-          float depth = depth_image.at<float> (indexrow,indexcol,0);
-          depth = roundf (depth);
-          int depthindex = static_cast<int>(depth);
-          // if (depthindex < 0){
-          //   depthindex = 0;
-          // }
-          // else if (depthindex > 255){
-          //   depthindex = 255;
-          // }
-
-          // std::cout << depthindex << std::endl;
-
-          for (int adjcolor_index = colorindex+9; adjcolor_index <= colorindex + 15; ++adjcolor_index){
-            for (int adjdepth_index = depthindex+9; adjdepth_index <= depthindex + 15; ++adjdepth_index){
-              if (adjcolor_index >= 0 && adjcolor_index <= 360 && adjdepth_index >= 0 && adjdepth_index <= 255){
-                // std::cout << "adjcolor_index: " << adjcolor_index << std::endl;
-                cv::Vec3b pointcolor = graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index);
-                pointcolor = (0,0,0);
-                graph.at<cv::Vec3b>(adjcolor_index,adjdepth_index) = pointcolor;
-              }
-              else{
-                ;
-              }
-
-              // if (tempindex > 0 || tempindex < 360){
-              //   cv::Vec3b tempcolor = graph.at<cv::Vec3b>(tempindex,depthindex);
-              //   tempcolor = (0,0,0);
-              //   graph.at<cv::Vec3b>(tempindex,depthindex) = tempcolor;
-              // }
-            }
-          }
-
-          // std::cout << "Finished!" << colorindex << ", " << depthindex << std::endl;
-
-        }
-      }
-    cv::imwrite("Screenshot.bmp",graph);
-    }
-
-    // Update GUI Window
-    // cv::imshow("hsv", hsv_image);
-    // cv::imshow("hue", small_hue);
-    // cv::imshow("value", hsv_split[2]);
-    // cv::imshow("depth", depth_image);
-    // cv::imshow("final_image", final_image);
-    // cv::imwrite("Screenshot.bmp", graph);
-    // cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
-
-    // Output modified video stream
-    image_pub_.publish(cv_ptr->toImageMsg());
   }
 
   cv::Mat cropMiddleThirds(cv::Mat imageToCrop)
@@ -494,16 +455,16 @@ public:
       right_whitepixel_new = cv::countNonZero(threshold_right_crop);
       outer_whitepixel_new = left_whitepixel_new + right_whitepixel_new;
 
-      cout << "outer: " << outer_whitepixel_new << " inner: " << mid_whitepixel_new << endl;
-      cout << "outer is darker: " << (outer_whitepixel_new < 0.9*outer_and_inner_whitepixels[0]) << endl;
-      cout << "middle is more or equally white: " << !(mid_whitepixel_new < 0.9*outer_and_inner_whitepixels[1]) << endl;
+      //cout << "outer: " << outer_whitepixel_new << " inner: " << mid_whitepixel_new << endl;
+      //cout << "outer is darker: " << (outer_whitepixel_new < 0.9*outer_and_inner_whitepixels[0]) << endl;
+      //cout << "middle is more or equally white: " << !(mid_whitepixel_new < 0.9*outer_and_inner_whitepixels[1]) << endl;
       //cv::imshow("threshold_candidate", threshold_image);
       //cv::waitKey(0); // show image until button press
       if((outer_whitepixel_new < 0.9*outer_and_inner_whitepixels[0]) && // if new outer is darker
             !(mid_whitepixel_new < 0.9*outer_and_inner_whitepixels[1])) // if new middle is more or equally white
       {
           // keep
-          cout << "found a better value!" << endl;
+          //cout << "found a better value!" << endl;
           outer_and_inner_whitepixels[0] = outer_whitepixel_new;
           outer_and_inner_whitepixels[1] = mid_whitepixel_new;
           return true;
@@ -541,11 +502,13 @@ public:
     leftEdgeScanIndex_ = msg.left_limit;
   }
 
-  // Start Calibration upon keyboard press
-  void keyBoardCb(keyboard::Key msg) {
-    std::cout << "Key Pressed" << std::endl;
-    time_start_ = get_time_now();
-    do_slic_ = true;
+  // Start Calibration upon start message
+  void Start_cb(std_msgs::Bool msg) {
+    if (msg.data) {
+      std::cout << "calibration started" << std::endl;
+      time_start_ = get_time_now();
+      bringup();
+    }
   }
 
    vector<cv::Scalar> minmaxColourCalibration() {
@@ -641,7 +604,7 @@ public:
       boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_);
       for(unsigned int i = 0; i < size; ++i)
       {
-        if (ImageConverter::isScanRangeInCone(i))
+        if (Calibrator::isScanRangeInCone(i))
         {
           msg.ranges[i] = lidarDists[i];
         }
@@ -652,18 +615,14 @@ public:
       }
     }
 
-    //
-    // Publish
-    //
-    laser_pub_.publish(msg);
   }
 
 };
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "image_converter");
-  ImageConverter ic;
+  ros::init(argc, argv, "calibrator");
+  Calibrator calibrator;
   ros::spin();
   return 0;
 }
