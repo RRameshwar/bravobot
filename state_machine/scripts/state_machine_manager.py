@@ -28,7 +28,13 @@ def main():
                                             'no_person':'Standby'})
         smach.StateMachine.add('PersonFollow', PersonFollow(), 
                                transitions={'timeout':'Standby',
-                                            'exit':'exit'})
+                                            'exit':'Complain'})
+        smach.StateMachine.add('Wait', Wait(), 
+                               transitions={'timeout':'Standby',
+                                            'button':'PersonFollow'})
+        smach.StateMachine.add('Complain', Complain(), 
+                               transitions={'timeout':'exit',
+                                            'button':'PersonFollow'})
 
     # Execute SMACH plan
     outcome = sm.execute()
