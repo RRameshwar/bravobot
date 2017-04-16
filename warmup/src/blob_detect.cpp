@@ -8,7 +8,9 @@
 #include <boost/thread/mutex.hpp>
 #include <iostream>
 #include <warmup/LidarCone.h>
+#include <warmup/ColorThreshold.h>
 #include <stdio.h>
+#include <std_msgs/Bool.h>
 #include <geometry_msgs/Point.h>
 
 /* From test_slic.cpp */
@@ -29,15 +31,18 @@ class ImageConverter
 {
   ros::NodeHandle nh_;
 
+  // start/stop
+  ros::Subscriber start_sub_;
+  ros::Subscriber stop_sub_;
   // Camera
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
-  image_transport::Publisher image_pub_;
 
   // Lidar
   ros::Subscriber laser_sub_;
   ros::Publisher laser_pub_;
 
+  // output
   ros::Publisher com_pub_;
 
   float lastScan_[512];
@@ -49,44 +54,87 @@ class ImageConverter
 
   // dynamic reconfigure
   ros::Subscriber reconfig_sub_;
-
-  bool verbose_;
-  bool do_graph_;
-  bool do_slic_;
+  ros::Subscriber threshold_sub_;
 
   int counter;
 
+  uint h_min;
+  uint h_max;
+  uint s_min;
+  uint s_max;
+  uint v_min;
+  uint v_max;
+
 public:
   ImageConverter()
-    : it_(nh_)
-  {
+    : it_(nh_) {
+    // subscribe to updated color threshold
+    threshold_sub_ = nh_.subscribe<warmup::ColorThreshold>("/color_threshold", 1, &ImageConverter::thresholdCB, this);
+
+    start_sub_ = nh_.subscribe<std_msgs::Bool>("start", 1, &ImageConverter::startCb, this);
+
+    //Publishes position of center of pass
+    com_pub_ = nh_.advertise<geometry_msgs::Point>("center_of_mass", 1);
+
+    laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
+
+  }
+
+  void init(){
+
+    stop_sub_ = nh_.subscribe<std_msgs::Bool>("stop", 1, &ImageConverter::stopCb, this);
+
     // Subscribe to input video feed and publish output video feed
     image_sub_ = it_.subscribe("/image_raw", 1, &ImageConverter::imageCb, this);
-    image_pub_ = it_.advertise("/image_converter/output_video", 1);
 
     // Subscribe to laser scan data
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
-    laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
-
-    //Publishes position of center of pass
-    com_pub_ = nh_.advertise<geometry_msgs::Point>("/center_of_mass", 1);
 
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
     //cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     //cv::namedWindow(OPENCV_WINDOW);
 
-    verbose_ = false;
-    do_graph_ = false;
-    do_slic_ = false;
 
     /* Calibrated values for bravobot based on dynamic reconfigure test */
-    rightEdgeScanIndex_ = 345;
-    leftEdgeScanIndex_ = 180;
+    rightEdgeScanIndex_ = 358;
+    leftEdgeScanIndex_ = 187;
+  }
+
+  void sleep(){
+    image_sub_.shutdown();
+    laser_sub_.shutdown();
+    reconfig_sub_.shutdown();
+    stop_sub_.shutdown();
   }
 
   ~ImageConverter()
   {
     //cv::destroyWindow(OPENCV_WINDOW);
+  }
+
+  void thresholdCB(const warmup::ColorThreshold msg){
+    h_min = msg.min.x;
+    s_min = msg.min.y;
+    v_min = msg.min.z;
+    h_max = msg.max.x;
+    s_max = msg.max.y;
+    v_max = msg.max.z;
+
+    std::cout<<h_min<<" "<<h_max<<std::endl;
+    std::cout<<s_min<<" "<<s_max<<std::endl;
+    std::cout<<v_min<<" "<<v_max<<std::endl;
+  }
+
+  void startCb(const std_msgs::Bool msg){
+    std::cout << "starting person follow" << std::endl;
+    if (msg.data) {
+      init();
+    }
+  }
+
+  void stopCb(const std_msgs::Bool msg){
+    std::cout << "stopping person follow" << std::endl;
+    sleep();
   }
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
@@ -110,7 +158,7 @@ public:
 
     //blob detection wheeeee
     cv::Mat threshold_image;
-    inRange(hsv_image, cv::Scalar(20, 0, 0), cv::Scalar(160, 255, 100), threshold_image);
+    inRange(hsv_image, cv::Scalar(h_min, s_min, v_min), cv::Scalar(h_max, s_max, v_max), threshold_image);
 
     int scan_width = rightEdgeScanIndex_ - leftEdgeScanIndex_;
 
@@ -138,7 +186,7 @@ public:
     cv::Mat img_eroded;
     cv::Mat img_dilated;
 
-    std::cout << small_color_threshold.size() << std::endl;
+    //std::cout << small_color_threshold.size() << std::endl;
     
     inRange(small_color_threshold, cv::Scalar(180, 0, 0), cv::Scalar(255, 255, 255), small_depth_thresh);
 

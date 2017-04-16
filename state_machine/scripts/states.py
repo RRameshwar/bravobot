@@ -81,18 +81,58 @@ class Calibrate(smach.State):
         time.sleep(0.5) # give publisher time to initialize
         self.start_calibrate.publish(Bool(True)) # publish to start calibrate nodes
 
-    def exit(self):
+    def exit(self, output):
         # shutdown state - on state end
-        self.start_calibrate.unregister() #unregister subscriber
+        self.person_sub.unregister() #unregister subscriber
+        return output
 
     def execute(self, userdata):
         # main function of calibrate state
         rospy.loginfo('Calibrating')
         self.state_init()
         start_time = rospy.Time.now()
-        while rospy.Time.now() - start_time < rospy.Duration(15):
+        while rospy.Time.now() - start_time < rospy.Duration(20):
             if self.person:
-                return 'person' #on person found
+                return self.exit('person') #on person found
             time.sleep(1)
         rospy.loginfo('Person Not Found')
-        return 'no_person' #on timeout
+        return self.exit('no_person') #on timeout
+
+
+class PersonFollow(smach.State):
+    """
+    Person Follow state: activates person following.
+    """
+    def __init__(self):
+        # initialize state - on system start
+        smach.State.__init__(self, outcomes=['exit', 'timeout'])
+        self.exit_cmd = False
+
+    def on_exit_request(self, msg):
+        # callback for person found
+        self.exit_cmd = msg.data
+
+    def state_init(self):
+        # initialize state - on state start
+        self.person = False
+        self.start_state = rospy.Publisher('/person_follow/start', Bool, queue_size=10)
+        self.exit_sub = rospy.Subscriber('/person_follow/stop', Bool, self.on_exit_request)
+        time.sleep(0.5) # give publisher time to initialize
+        self.start_state.publish(Bool(True)) # publish to start calibrate nodes
+
+    def exit(self, output):
+        # shutdown state - on state end
+        self.exit_sub.unregister() #unregister subscriber
+        return output
+
+    def execute(self, userdata):
+        # main function of calibrate state
+        rospy.loginfo('Following Person')
+        self.state_init()
+        start_time = rospy.Time.now()
+        while rospy.Time.now() - start_time < rospy.Duration(120):
+            if self.exit_cmd:
+                return self.exit('exit')
+            time.sleep(1)
+        rospy.loginfo('exiting')
+        return self.exit('timeout') #on timeout

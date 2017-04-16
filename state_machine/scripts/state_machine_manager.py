@@ -12,7 +12,7 @@ def main():
     rospy.init_node('smach_example_state_machine')
 
     # Create a SMACH state machine
-    sm = smach.StateMachine(outcomes=['timeout', 'found_person', 'error'])
+    sm = smach.StateMachine(outcomes=['timeout', 'test_end', 'exit', 'error'])
 
     # Open the container
     with sm:
@@ -24,8 +24,11 @@ def main():
                                transitions={'timeout':'timeout',
                                             'button':'Calibrate'})
         smach.StateMachine.add('Calibrate', Calibrate(), 
-                               transitions={'person':'Standby',
+                               transitions={'person':'PersonFollow',
                                             'no_person':'Standby'})
+        smach.StateMachine.add('PersonFollow', PersonFollow(), 
+                               transitions={'timeout':'Standby',
+                                            'exit':'exit'})
 
     # Execute SMACH plan
     outcome = sm.execute()
