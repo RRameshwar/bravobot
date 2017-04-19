@@ -24,7 +24,7 @@ using namespace std;
 
 #include "slic.h"
 
-//static const std::string OPENCV_WINDOW = "Image window";
+static const std::string OPENCV_WINDOW = "Image window";
 
 // ROS -> OpenCV -> RGB-Depth?!
 class ImageConverter
@@ -65,6 +65,8 @@ class ImageConverter
   uint v_min;
   uint v_max;
 
+  bool active = false;
+
 public:
   ImageConverter()
     : it_(nh_) {
@@ -98,9 +100,12 @@ public:
     /* Calibrated values for bravobot based on dynamic reconfigure test */
     rightEdgeScanIndex_ = 358;
     leftEdgeScanIndex_ = 187;
+
+    active = true;
   }
 
   void sleep(){
+    active = false;
     image_sub_.shutdown();
     laser_sub_.shutdown();
     reconfig_sub_.shutdown();
@@ -139,6 +144,9 @@ public:
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   {
+    if (!active){
+      return;
+    }
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -196,6 +204,24 @@ public:
 
     cv::Point com = center_of_mass(img_eroded);
 
+    //find 3D position of person
+    int com_scan = (rightEdgeScanIndex_ - leftEdgeScanIndex_)/2-com.x+leftEdgeScanIndex_; //lidar index of person
+    float person_r = 1000;
+    for (int i=-15; i<=15; i++){
+      if (com_scan-i > 0 && com_scan+i<512) {
+        float range = lastScan_[com_scan + i];
+        if (range < person_r) {
+          person_r = range;
+        }
+      }
+    }
+    float person_angle = com_scan*3.14/512 - 1.57;
+    float x = polar_to_cart_x(person_r, person_angle);
+    float y = polar_to_cart_y(person_r, person_angle);
+
+    std::cout << "radius: " << person_r << "  angle: " << person_angle*180/3.14 << "  scan: " << com_scan << std::endl;
+    std::cout << "x: " << x << "  y: " << y << std::endl;
+
     //Publish center of mass to /center_of_mass
     geometry_msgs::Point com_output;
     com_output.x = com.x;
@@ -203,7 +229,7 @@ public:
     com_pub_.publish(com_output);
 
     
-    /*/ for viewing
+    // for viewing
     com.x += img_eroded.cols/2;
     com.y = -1*(com.y - img_eroded.rows/2);
 
@@ -219,27 +245,18 @@ public:
     // cv::imwrite("Screenshot.bmp", graph);
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(3);
-    */
+    //
     // Output modified video stream
     
 
   }
 
 
-  int convertScanRangeToCameraDepth(float range)
-  {
-    return int(128.0 / range);
-  }
-
   bool isScanRangeInCone(unsigned int scanRangeIndex)
   {
     return scanRangeIndex < rightEdgeScanIndex_ && scanRangeIndex > leftEdgeScanIndex_; 
   }
 
-  static void processMouseEvent(int event, int x, int y, int, void* )
-  {
-    ROS_INFO("TODO: implement some command that hovers and prints the rgb color value");
-  }
 
   void reconfigCb(warmup::LidarCone msg) {
     boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_); 
@@ -292,9 +309,9 @@ public:
       }
     }
 
-    // 
+    //
     // Publish
-    // 
+    //
     laser_pub_.publish(msg);
   }
 
@@ -322,6 +339,13 @@ public:
     com.y = (int)((-1*ysum/numPoints) + (height/2));
 
     return com;
+  }
+
+  float polar_to_cart_x(float r, float theta){
+    return r*cos(theta);
+  }
+  float polar_to_cart_y(float r, float theta){
+    return r*sin(theta);
   }
 
   void blech (cv::Mat input){
