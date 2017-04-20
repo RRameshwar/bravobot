@@ -1,0 +1,38 @@
+odom_frame: odom
+base_link_frame: base_link
+world_frame: odom 
+
+publish_tf: true
+two_d_mode: true
+frequency: 100
+
+# WHEEL ENCODER 
+odom0: /odom
+odom0_config: [true,true,true, # position
+               false,false,false, # somehow must disable this
+               true,false,false, # linear velocity - certainly
+               false,false,true, # angular velocity - kind of.
+               false,false,false]
+odom0_differential: true #
+odom0_queue_size: 10
+
+# IMU
+imu0: /android/imu
+imu0_config: [false, false, false, # no position data
+              true, true, true, # Orientation
+              false, false, false, # no velocity data
+              true, true, true, # Angular Velocity
+              true, true, true] # Linear Acceleration #TODO : disable y-direction acceleration for diff-drive robot!
+imu0_differential: false # Absolute Orientation (w.r.t magnetic field)
+imu0_queue_size: 10
+imu0_remove_gravitational_acceleration: false # already removed
+
+imu1: /imu/data
+imu1_config: [false, false, false, # no position data
+              false, false, false, # Orientation
+              false, false, false, # no velocity data
+              false, false, true, # Angular Velocity
+              true, false, false] # Linear Acceleration #TODO : disable y-direction acceleration for diff-drive robot!
+imu1_differential: false # Absolute Orientation (w.r.t magnetic field)
+imu1_queue_size: 10
+imu1_remove_gravitational_acceleration: true # already removed
