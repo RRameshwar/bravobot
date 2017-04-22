@@ -9,11 +9,11 @@
 #include <iostream>
 #include "warmup/ColorThreshold.h"
 #include "warmup/LidarCone.h"
+//#include <keyboard/Key.h>
 //#include <warmup/ColorThreshold.h>
 #include <geometry_msgs/Vector3.h>
 #include <std_msgs/Bool.h>
 #include <stdio.h>
-//#include <keyboard/Key.h>
 #include <time.h>
 #include <sys/time.h>
 
@@ -94,13 +94,12 @@ public:
   {
     // TODO: LidarCone msg being used for min hue and max val... not so clear
     color_pub_ = nh_.advertise<warmup::ColorThreshold>("/color_threshold", 1);
-
     start_sub_ = nh_.subscribe<std_msgs::Bool>("start", 1, &Calibrator::Start_cb, this);
     done_pub_ = nh_.advertise<std_msgs::Bool>("stop", 10);
     verbose_ = false;
-    do_slic_ = true;
+    do_slic_ = false;
 
-    /* Calibrated values for bravobot based on dynamic reconfigure test */
+      /* Calibrated values for bravobot based on dynamic reconfigure test */
     rightEdgeScanIndex_ = 358;
     leftEdgeScanIndex_ = 187;
   }
@@ -112,8 +111,8 @@ public:
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &Calibrator::laserScanCallback, this);
 
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &Calibrator::reconfigCb, this);
-    //cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::processMouseEvent);
-    //cv::namedWindow(OPENCV_WINDOW);
+    cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::processMouseEvent);
+    cv::namedWindow(OPENCV_WINDOW);
     do_slic_ = true;
   }
 
@@ -285,21 +284,22 @@ public:
         // Add the colours defining the legs in this frame to the overall color calibration vector
         vector<CvScalar> colours_this_frame = slic.get_leg_color(final_image_ipl, depth_image_ipl);
         cout << colours_this_frame.size() << endl;
+        //cout << "error above here" << endl;
         template_color_vec.reserve(template_color_vec.size() + distance(colours_this_frame.begin(),colours_this_frame.end()));
         template_color_vec.insert(template_color_vec.end(),colours_this_frame.begin(),colours_this_frame.end());
 
         cv::Mat final_slic_image = cv::Mat(final_image_ipl);
         //cv::Mat bigger_final_slic_image;
-//        cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
+        //cv::resize(final_slic_image, bigger_final_slic_image, cv_ptr->image.size());
 
         //cv::imshow("result", final_slic_image);
 
+
         // Once calibration period has completed
         double time_elapsed = get_time_elapsed(time_start_);
-        if (time_elapsed >= 5 * 1000) {
+        if (time_elapsed >= 15 * 1000) {
             // Stop doing SLIC calibration
             do_slic_ = false;
-
             // Extract color ranges for the legs we were calibrating onto
             // Perform Min/Max in the 3 dimensions in color space
             vector<cv::Scalar> minmaxColours = Calibrator::minmaxColourCalibration();
@@ -320,7 +320,7 @@ public:
             cv::Mat threshold_left_crop = cropLeftThird(threshold_image);
             cv::Mat threshold_right_crop = cropRightThird(threshold_image);
 
-            //cv::imshow("threshold", threshold_image);
+            cv::imshow("threshold", threshold_image);
             int left_whitepixel = cv::countNonZero(threshold_left_crop);
             int mid_whitepixel = cv::countNonZero(threshold_mid_crop);
             int right_whitepixel = cv::countNonZero(threshold_right_crop);
@@ -377,8 +377,39 @@ public:
                     //cout << minmaxColours[1].val[2] << ")" << endl;
                 }
             }
+
+            cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
+            threshold_mid_crop = cropMiddleTop(threshold_image);
+            threshold_left_crop = cropLeftThird(threshold_image);
+            threshold_right_crop = cropRightThird(threshold_image);
+            left_whitepixel = cv::countNonZero(threshold_left_crop);
+            mid_whitepixel = cv::countNonZero(threshold_mid_crop);
+            right_whitepixel = cv::countNonZero(threshold_right_crop);
+            outer_whitepixel = left_whitepixel + right_whitepixel;
+
+//            cout << "LeftPixel" << left_whitepixel << "  ,RightPixel";
+//            cout << right_whitepixel << "  ,MidPixel";
+//            cout << mid_whitepixel << ")" << endl;
+
+            if((outer_whitepixel/2.0) < 0.9*mid_whitepixel)
+            {
+                cout << endl << "Person Follower Calibrated!" << endl;
+                sleep(true); // return person calibrated
+            }
+            else if(((outer_whitepixel/2.0) > 0.7*mid_whitepixel) && ((outer_whitepixel/2.0) < 1.3*mid_whitepixel))
+            {
+                cout << endl << "Calibration Unsuccessful! Please Calibrate again..." << endl;
+                sleep(false); // return person not found
+            }
+            else
+            {
+                cout << endl << "ERROR!!" << endl;
+                sleep(false); // return error (*need to implement try catch*)
+            }
+
             //cv::inRange(small_hsv, minmaxColours[0], minmaxColours[1], threshold_image);
             //cv::imshow(OPENCV_WINDOW, threshold_image);
+            //cv::imshow("calibrated", threshold_image);
             cout << endl << "AFTER: 30th and 70th" << endl;
             cout << "(" << minmaxColours[0].val[0] << ",";
             cout << minmaxColours[0].val[1] << ",";
@@ -394,7 +425,7 @@ public:
             msg.max.y = minmaxColours[1].val[1];
             msg.max.z = minmaxColours[1].val[2];
             color_pub_.publish(msg);
-            sleep(true);
+            //sleep(true);
         }
     }
     cv::waitKey(3);
@@ -504,7 +535,8 @@ public:
 
   // Start Calibration upon start message
   void Start_cb(std_msgs::Bool msg) {
-    if (msg.data) {
+    if (msg.data)
+    {
       std::cout << "calibration started" << std::endl;
       time_start_ = get_time_now();
       bringup();
