@@ -1,4 +1,4 @@
-image: /home/odroid/2ndfloor_firsthalf.pgm
+image: /home/odroid/catkin_ws/src/bravobot/warmup/maps/2ndfloor_firsthalf_full.pgm
 resolution: 0.050000
 origin: [-51.224998, -51.224998, 0.000000]
 negate: 0

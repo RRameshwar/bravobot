@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- Forked from https://github.com/paulruvolo/comprobo17/blob/master/neato_robot/neato_2dnav/launch/amcl_builtin.launch-->
+<launch>
+  <!-- Map server -->
+  <arg name="map_file"/>
+  <arg name="scan_topic" default="/scan"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+  <!-- Localization -->
+  <!-- Hardcoded initial poses for 2nd floor map, near AC212/214-->
+  <arg name="initial_pose_x" default="37.26"/>
+  <arg name="initial_pose_y" default="2.486"/>
+  <arg name="initial_pose_a" default="2.282"/>
+  <include file="$(find warmup)/launch/includes/amcl.launch.xml">
+    <arg name="scan_topic" value="$(arg scan_topic)"/>
+    <arg name="initial_pose_x" value="$(arg initial_pose_x)"/>
+    <arg name="initial_pose_y" value="$(arg initial_pose_y)"/>
+    <arg name="initial_pose_a" value="$(arg initial_pose_a)"/>
+  </include>
+</launch>
