@@ -296,7 +296,7 @@ public:
 
         // Once calibration period has completed
         double time_elapsed = get_time_elapsed(time_start_);
-        if (time_elapsed >= 15 * 1000) {
+        if (time_elapsed >= 10 * 1000) {
             // Stop doing SLIC calibration
             do_slic_ = false;
 

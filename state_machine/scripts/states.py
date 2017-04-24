@@ -116,13 +116,15 @@ class PersonFollow(smach.State):
         # initialize state - on state start
         self.exit_cmd = False
         self.start_state = rospy.Publisher('/person_follow/start', Bool, queue_size=10)
-        self.exit_sub = rospy.Subscriber('/person_follow/stop', Bool, self.on_exit_request)
+        self.stop_state = rospy.Publisher('/person_follow/stop', Bool, queue_size=10)
+        self.button_sub = rospy.Subscriber('/button', Bool, self.on_exit_request)
         time.sleep(0.5) # give publisher time to initialize
         self.start_state.publish(Bool(True)) # publish to start calibrate nodes
 
     def exit(self, output):
         # shutdown state - on state end
-        self.exit_sub.unregister() #unregister subscriber
+        self.button_sub.unregister() #unregister subscriber
+        self.stop_state.publish(Bool(True))
         return output
 
     def execute(self, userdata):

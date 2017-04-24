@@ -42,6 +42,7 @@ class ImageConverter
   // Lidar
   ros::Subscriber laser_sub_;
   ros::Publisher laser_pub_;
+  bool laserRecieved;
 
   // output
   ros::Publisher com_pub_;
@@ -79,11 +80,12 @@ public:
     com_pub_ = nh_.advertise<geometry_msgs::Point>("center_of_mass", 1);
 
     laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
+    laserRecieved = false;
 
   }
 
   void init(){
-
+    laserRecieved = false;
     stop_sub_ = nh_.subscribe<std_msgs::Bool>("stop", 1, &ImageConverter::stopCb, this);
 
     // Subscribe to input video feed and publish output video feed
@@ -141,6 +143,9 @@ public:
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   {
+    if (!laserRecieved){
+      return;
+    }
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -237,12 +242,12 @@ public:
     cv::resize(img_dilated, img_dilated, threshold_image.size());
     
     //cv::imshow("threshold_image", threshold_image);
-    cv::imshow("small_depth_thresh", small_depth_thresh);
-    cv::imshow("img_eroded", img_eroded);
-    cv::imshow("color_threshold", threshold_image);
+    //cv::imshow("small_depth_thresh", small_depth_thresh);
+    //cv::imshow("img_eroded", img_eroded);
+    //cv::imshow("color_threshold", threshold_image);
     // cv::imwrite("Screenshot.bmp", graph);
-    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
-    cv::waitKey(3);
+    //cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    //cv::waitKey(3);
     //
     // Output modified video stream
     
@@ -266,6 +271,7 @@ public:
   {
     unsigned int size = msg.ranges.size();
     scanSize_= size;
+    laserRecieved = true;
 
     // TODO(rlouie): set the right/left edges of sensor fusion cone by calibration
     /* rightEdgeScanIndex_ = size*7/12; */
