@@ -24,5 +24,6 @@
   <include file="$(find alpha_localization)/launch/localization.launch"/>
 
   <!-- mapping -->
-  <include file="$(find warmup)/launch/gmapping.launch"/>
+  <!-- <include file="$(find warmup)/launch/gmapping.launch"/> -->
+  <include file="$(find warmup)/launch/hector_mapping.launch"/>
 </launch>
