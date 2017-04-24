@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Localization - global -->
+	<node pkg="robot_localization" type="ukf_localization_node" name="ukf_localization_global" output="screen">
+		<rosparam command="load" file="$(find alpha_localization)/config/localization_global.yaml" />
+		<remap from="/odometry/filtered" to="/odometry/filtered/global"/>
+	</node>
+
+	<!-- NavSat Transform -->
+	<!--<node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" output="screen">
+		<param name="magnetic_declination_radians" value="0"/>
+		<param name="yaw_offset" value="0"/>
+		<param name="zero_altitude" value="false"/>
+		<param name="broadcast_utm_transform" value="true"/>
+		<param name="publish_filtered_gps" value="true"/>
+
+		<remap from="imu/data" to="android/imu" />
+		<remap from="gps/fix" to="android/gps" />
+		<remap from="/odometry/filtered" to="odometry/filtered/global"/>
+	</node>-->
+</launch>
