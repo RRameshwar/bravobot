@@ -1,21 +1,12 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(warmup)
+project(speaking)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  nav_msgs
   roscpp
-  sensor_msgs
-  std_msgs
-  laser_geometry
-  cv_bridge
-  image_transport
-  tf
-  dynamic_reconfigure
-  message_generation
+  rospy
 )
 
 ## System dependencies are found with CMake's conventions
@@ -52,11 +43,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  ColorThreshold.msg
-  LidarCone.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -73,11 +64,10 @@ add_message_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   std_msgs  # Or other packages containing msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -94,9 +84,10 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-generate_dynamic_reconfigure_options(
-    cfg/SensorFusion.cfg
-)
+# generate_dynamic_reconfigure_options(
+#   cfg/DynReconf1.cfg
+#   cfg/DynReconf2.cfg
+# )
 
 ###################################
 ## catkin specific configuration ##
@@ -109,8 +100,8 @@ generate_dynamic_reconfigure_options(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES warmup
-  CATKIN_DEPENDS message_runtime
+#  LIBRARIES speaking
+#  CATKIN_DEPENDS roscpp rospy
 #  DEPENDS system_lib
 )
 
@@ -126,54 +117,26 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(slic
-  src/slic.cpp
-)
+# add_library(speaking
+#   src/${PROJECT_NAME}/speaking.cpp
+# )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(warmup ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(speaking ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(warmup_node src/warmup_node.cpp)
-add_executable(pcl_node src/pcl_node.cpp)
-add_executable(calibration_server src/calibration_server.cpp)
-add_executable(test_slic src/test_slic.cpp)
-add_executable(blob_detect src/blob_detect.cpp)
-add_executable(detect_person src/detect_person.cpp)
-add_executable(color_detect src/color_detect_node.cpp)
+# add_executable(speaking_node src/speaking_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(warmup_node ${PROJECT_NAME}_gencfg)
-add_dependencies(warmup_node ${PROJECT_NAME}_generate_messages_cpp)
-
+# add_dependencies(speaking_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(warmup_node
-  ${catkin_LIBRARIES}
-  slic
-)
-target_link_libraries(pcl_node
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(calibration_server
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(test_slic
-  ${catkin_LIBRARIES}
-  slic
-)
-target_link_libraries(blob_detect
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(detect_person
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(color_detect
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(speaking_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -190,7 +153,7 @@ target_link_libraries(color_detect
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS warmup warmup_node
+# install(TARGETS speaking speaking_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -215,7 +178,7 @@ target_link_libraries(color_detect
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_warmup.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_speaking.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
