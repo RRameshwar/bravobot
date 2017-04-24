@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Point.h>
+#include <tf/transform_broadcaster.h>
 
 /* From test_slic.cpp */
 #include <opencv/cv.h>
@@ -44,6 +45,7 @@ class ImageConverter
 
   // output
   ros::Publisher com_pub_;
+  tf::TransformBroadcaster br_;
 
   float lastScan_[512];
   boost::mutex lastScan__mutex_;
@@ -64,8 +66,6 @@ class ImageConverter
   uint s_max;
   uint v_min;
   uint v_max;
-
-  bool active = false;
 
 public:
   ImageConverter()
@@ -100,12 +100,9 @@ public:
     /* Calibrated values for bravobot based on dynamic reconfigure test */
     rightEdgeScanIndex_ = 358;
     leftEdgeScanIndex_ = 187;
-
-    active = true;
   }
 
   void sleep(){
-    active = false;
     image_sub_.shutdown();
     laser_sub_.shutdown();
     reconfig_sub_.shutdown();
@@ -144,9 +141,6 @@ public:
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   {
-    if (!active){
-      return;
-    }
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -219,8 +213,12 @@ public:
     float x = polar_to_cart_x(person_r, person_angle);
     float y = polar_to_cart_y(person_r, person_angle);
 
-    std::cout << "radius: " << person_r << "  angle: " << person_angle*180/3.14 << "  scan: " << com_scan << std::endl;
-    std::cout << "x: " << x << "  y: " << y << std::endl;
+
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(x, y, 0.0));
+    br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "base_link", "person"));
+    //std::cout << "radius: " << person_r << "  angle: " << person_angle*180/3.14 << "  scan: " << com_scan << std::endl;
+    //std::cout << "x: " << x << "  y: " << y << std::endl;
 
     //Publish center of mass to /center_of_mass
     geometry_msgs::Point com_output;
