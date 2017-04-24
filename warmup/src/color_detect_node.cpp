@@ -9,6 +9,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <tf/transform_listener.h>
 
 //using namespace cv;
 
@@ -23,24 +24,35 @@ public:
   	cv::Mat map_colored;
   	int origin[];
   	int location;
+  	tf::TransformListener listener;
+  	tf::StampedTransform transform;
 
 	Localizer()
 	{
 		
 		pose_sub_ = nh_.subscribe("/amcl_pose", 1, &Localizer::poseCB, this);
+		//Change this to use a transform that gives us the position of the person
 		map_colored = cv::imread("/home/odroid/colormap.png", CV_LOAD_IMAGE_COLOR);
     	location_pub_ = nh_.advertise<sound_play::SoundRequest>("/robotsound", 1);
     	origin[0] = 2000; origin[1] = 2000; 
-    	location = 0;
-    	
-    	
+    	location = 0;   	
 	}
 
-	void poseCB(const geometry_msgs::PoseWithCovarianceStamped msg)
+	void localizePerson(const geometry_msgs::PoseWithCovarianceStamped msg)
 	{
 
-		double current_x = msg.pose.pose.position.x;
-		double current_y = msg.pose.pose.position.y;
+		try{
+        listener.lookupTransform("/person", "/map",  
+                                  ros::Time(0), transform);
+    	}
+       	catch (tf::TransformException ex){
+        	ROS_ERROR("%s",ex.what());
+        	ros::Duration(1.0).sleep();
+        	return;
+    	}
+
+		double current_x = transform.getOrigin().x();
+		double current_y = transform.getOrigin().y();
 		
 		std::cout << "Position[x, y] = " << current_x << " " << current_y << std::endl;
 
@@ -88,6 +100,12 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "image_converter");
   Localizer lz;
 
-  ros::spin();
+  ros::Rate rate(10.0)
+  while (lz.nh_.ok()){
+  	localizePerson();
+  	rate.sleep();
+  }
+
+
   return 0;
 }
