@@ -30,7 +30,7 @@ public:
 	Localizer()
 	{
 		
-		pose_sub_ = nh_.subscribe("/amcl_pose", 1, &Localizer::poseCB, this);
+		//pose_sub_ = nh_.subscribe("/amcl_pose", 1, &Localizer::poseCB, this);
 		//Change this to use a transform that gives us the position of the person
 		map_colored = cv::imread("/home/odroid/colormap.png", CV_LOAD_IMAGE_COLOR);
     	location_pub_ = nh_.advertise<sound_play::SoundRequest>("/robotsound", 1);
@@ -38,7 +38,7 @@ public:
     	location = 0;   	
 	}
 
-	void localizePerson(const geometry_msgs::PoseWithCovarianceStamped msg)
+	void localizePerson()
 	{
 
 		try{
@@ -100,9 +100,9 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "image_converter");
   Localizer lz;
 
-  ros::Rate rate(10.0)
+  ros::Rate rate(10.0);
   while (lz.nh_.ok()){
-  	localizePerson();
+  	lz.localizePerson();
   	rate.sleep();
   }
 

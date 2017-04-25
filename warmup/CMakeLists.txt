@@ -149,6 +149,15 @@ add_executable(color_detect src/color_detect_node.cpp)
 add_dependencies(warmup_node ${PROJECT_NAME}_gencfg)
 add_dependencies(warmup_node ${PROJECT_NAME}_generate_messages_cpp)
 
+add_dependencies(blob_detect ${PROJECT_NAME}_gencfg)
+add_dependencies(blob_detect ${PROJECT_NAME}_generate_messages_cpp)
+
+add_dependencies(detect_person ${PROJECT_NAME}_gencfg)
+add_dependencies(detect_person ${PROJECT_NAME}_generate_messages_cpp)
+
+add_dependencies(calibration_server ${PROJECT_NAME}_gencfg)
+add_dependencies(calibration_server ${PROJECT_NAME}_generate_messages_cpp)
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(warmup_node
