@@ -52,9 +52,9 @@ class Standby(smach.State):
         self.state_init()
         start_time = rospy.Time.now()
         while not self.button:
-            if rospy.Time.now() - start_time > rospy.Duration(20):
+            if rospy.Time.now() - start_time > rospy.Duration(60):
                 # on timeout
-                return self.exit('timeout')s
+                return self.exit('timeout')
             time.sleep(1)
         return self.exit('button') # if button is pressed
         

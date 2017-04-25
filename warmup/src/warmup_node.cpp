@@ -31,7 +31,7 @@ using namespace std;
 
 #include "slic.h"
 
-static const std::string OPENCV_WINDOW = "Image window";
+//static const std::string OPENCV_WINDOW = "Image window";
 
 /* timing helpers */
 struct timeval get_time_now() {
@@ -111,8 +111,8 @@ public:
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &Calibrator::laserScanCallback, this);
 
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &Calibrator::reconfigCb, this);
-    cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::processMouseEvent);
-    cv::namedWindow(OPENCV_WINDOW);
+    //cv::setMouseCallback(OPENCV_WINDOW, &Calibrator::processMouseEvent);
+    //cv::namedWindow(OPENCV_WINDOW);
     do_slic_ = true;
   }
 
@@ -129,7 +129,7 @@ public:
 
   ~Calibrator()
   {
-    cv::destroyWindow(OPENCV_WINDOW);
+    //cv::destroyWindow(OPENCV_WINDOW);
   }
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
@@ -321,7 +321,7 @@ public:
             cv::Mat threshold_left_crop = cropLeftThird(threshold_image);
             cv::Mat threshold_right_crop = cropRightThird(threshold_image);
 
-            cv::imshow("threshold", threshold_image);
+            //cv::imshow("threshold", threshold_image);
             int left_whitepixel = cv::countNonZero(threshold_left_crop);
             int mid_whitepixel = cv::countNonZero(threshold_mid_crop);
             int right_whitepixel = cv::countNonZero(threshold_right_crop);

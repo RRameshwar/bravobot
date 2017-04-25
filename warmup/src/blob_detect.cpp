@@ -82,6 +82,14 @@ public:
     laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
     laserRecieved = false;
 
+    h_min = 20;
+    h_max = 160;
+    s_min = 0;
+    s_max = 255;
+    v_min = 0;
+    v_max = 100;
+
+
   }
 
   void init(){
