@@ -22,7 +22,7 @@ def main():
                                             'no':'error'})
         smach.StateMachine.add('Standby', Standby(), 
                                transitions={'timeout':'timeout',
-                                            'button':'PersonFollow'})
+                                            'button':'Calibrate'})
         smach.StateMachine.add('Calibrate', Calibrate(), 
                                transitions={'person':'PersonFollow',
                                             'no_person':'Standby'})

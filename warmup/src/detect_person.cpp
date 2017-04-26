@@ -110,8 +110,8 @@ public:
 
 	void run (){
 		if (pub_) {
-			float speed = lim((dist_nearest_object - 1) / 3, -1, 1);
-			float angle = lim(-1 * ((float) pos_person.x) / 100, -1, 1);
+			float speed = lim((dist_nearest_object - 0.6) / 1, -1, 1);
+			float angle = lim(-1 * ((float) pos_person.x) / 500, -1, 1);
 			std::cout << pos_person.x << std::endl;
 			geometry_msgs::Twist output;
 			output.linear.x = speed;
