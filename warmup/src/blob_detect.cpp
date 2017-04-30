@@ -338,7 +338,7 @@ public:
     for (int j = 0; j < height; j++){
       for (int i = 0; i < width; i++){
         cv::Scalar color = input.at<uchar>(cv::Point(i, j));
-        if (color.val[0] > 150){
+        if (color.val[0] > 200){
           xsum += i;
           ysum += j;
           numPoints ++;

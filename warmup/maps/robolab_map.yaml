@@ -1,4 +1,4 @@
-image: /home/odroid/robolab_map.pgm
+image: robolab_map.pgm
 resolution: 0.020000
 origin: [-5.000000, -15.240000, 0.000000]
 negate: 0

@@ -27,7 +27,7 @@ def main():
                                transitions={'person':'PersonFollow',
                                             'no_person':'Standby'})
         smach.StateMachine.add('PersonFollow', PersonFollow(), 
-                               transitions={'timeout':'Standby',
+                               transitions={'timeout':'Wait',
                                             'exit':'Complain'})
         smach.StateMachine.add('Wait', Wait(), 
                                transitions={'timeout':'Standby',
