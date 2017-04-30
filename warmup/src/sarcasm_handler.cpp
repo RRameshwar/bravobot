@@ -1,23 +1,23 @@
 #include "ros/ros.h"
-// #include "std_msgs/String.h"
+#include "std_msgs/String.h"
 #include <string>
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <tuple>
+// #include <tuple>
 
 using namespace std;
 
 class SarcasmSelect
 {
-    char curr_area[15];
+    std::string curr_area;
     std::string filepath;
     std::string foldername;
     std::string length;
     int index;
-    std::map <char, std::string> color_dict;
+    // std::map <char, std::string> color_dict;
     
 public:
 // int main (void)
@@ -42,12 +42,12 @@ public:
 //   return 0;
 // }
 
-    void areaCallback(const std_msgs::String& msg)
+    void areaCallback(const std_msgs::String::ConstPtr& msg)
     {
     //    ROS_INFO("I heard: [%s]", msg->data.c_str());
-        curr_area.data = msg->data;
+        curr_area = msg->data.c_str();
 
-        ROS_INFO("I'm currently by the [%s]", curr_area);
+        // ROS_INFO("I'm currently by the [%s]", curr_area);
     }
 
     std::string generate_filepath(){
@@ -74,9 +74,9 @@ int main(int argc, char **argv)
     SarcasmSelect ss;
 
     ros::Subscriber area_sub = n.subscribe("area_updates", 1000, ss.areaCallback);
-    ros::Publisher filepath_pub = n.advertise<std_msgs::string>("wav_file", filepath);
+    ros::Publisher filepath_pub = n.advertise<std_msgs::String>("wav_file", filepath);
 
-    while ros::ok{
+    while (ros::ok){
         // Insert code for determining long or short comment
         ss.generate_filepath();
         std::cout << "Play file: " << filepath << std::endl;
