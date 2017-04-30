@@ -105,12 +105,18 @@ public:
 		if (input>max){
 			return max;
 		}
+		if (input > 0.01 && input < 0.1){
+			return 0.1;
+		}
+		if (input < -.01 && input > -0.1){
+			return -0.1;
+		}
 		return input;
 	}
 
 	void run (){
 		if (pub_) {
-			float speed = lim((dist_nearest_object - 0.6) / 1, -1, 1);
+			float speed = lim(pow((dist_nearest_object - 0.6) *3,3), -1, 1);
 			float angle = lim(-1 * ((float) pos_person.x) / 500, -1, 1);
 			std::cout << pos_person.x << std::endl;
 			geometry_msgs::Twist output;

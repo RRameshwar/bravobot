@@ -161,6 +161,7 @@ class Wait(smach.State):
         # initialize state - on state start
         self.button_sub = rospy.Subscriber('/button', Bool, self.on_button)
         self.button = False
+	time.sleep(.02)
 	self.stop_pub.publish(Twist())
 
 

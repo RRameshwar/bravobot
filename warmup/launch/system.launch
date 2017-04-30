@@ -3,4 +3,5 @@
 	<node pkg='warmup' type='warmup_node' name='calibrator' ns='calibrator' output='screen'/>
 	<include file='$(find warmup)/launch/person_follow.launch'/>
 	<node pkg='state_machine' type='state_machine_manager.py' name='state_machine' output='screen'/>
+	<include file='$(find warmup)/launch/localizer.launch'/>
 </launch>
