@@ -4,14 +4,13 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <dirent.h>
+#include "boost/filesystem.hpp"
+#include <iterator> // std::distance
 #include <sstream>  // for string streams
 // #include <tuple>
-#include <typeinfo>
 #include <time.h>
+#include <wordexp.h> // turning ~ -> /home/odroid
 
-using namespace std;
 
 class SarcasmSelect
 {
@@ -23,7 +22,7 @@ class SarcasmSelect
     // std::string foldername;
     // std::string length;
     std::string index_str;
-    ostringstream temp_index;
+    std::ostringstream temp_index;
     int index;
     // std::map <char, std::string> color_dict;
     
@@ -34,27 +33,6 @@ public:
         area_sub = n.subscribe<std_msgs::String>("/area_updates", 1000, &SarcasmSelect::areaCallback, this);
         // ros::Publisher filepath_pub = n.advertise<std_msgs::String>("wav_file", filepath);
     }
-// int main (void)
-// {
-//   DIR *dp;
-//   int i;
-//   struct dirent *ep;     
-//   dp = opendir ("./");
-
-//   if (dp != NULL)
-//   {
-//     while (ep = readdir (dp))
-//       i++;
-
-//     (void) closedir (dp);
-//   }
-//   else
-//     perror ("Couldn't open the directory");
-
-//   printf("There's %d files in the current directory.\n", i);
-
-//   return 0;
-// }
 
     void areaCallback(const std_msgs::String::ConstPtr& msg)
     {
@@ -69,19 +47,47 @@ public:
         // ROS_INFO("I'm currently by the [%s]", curr_area);
     }
 
+    int numFilesInDir(std::string filepath) {
+   	
+	// expand ~/catkin_ws... to /home/odroid/catkin_ws... 
+	wordexp_t exp_result;
+	wordexp(filepath.c_str(), &exp_result, 0);
+
+        int num_files = std::distance(
+            boost::filesystem::directory_iterator(exp_result.we_wordv[0]),
+            boost::filesystem::directory_iterator());
+
+        return num_files;
+    }
+
     std::string generate_filepath(std::string foldername, std::string length){
         srand ( time(NULL) );
-        index = (rand() % 3) + 1; // Generates random file index # from 1 to n-1
 
+        filepath = "~/catkin_ws/src/bravobot/warmup/voices/" + foldername + "/" + length + "/";
+
+        std::cout << filepath << std::endl;
+        
+        // find number of files in the directory
+        int num_files;
+        try
+        {
+            num_files = numFilesInDir(filepath);
+        }
+        catch (boost::filesystem::filesystem_error& e)
+        {
+            std::cout << e.what() << std::endl;
+            return 0;
+        }
+
+        
+        index = (rand() % num_files) + 1; // Generates random file index # from 1 to n-1
         // Sending a number as a stream into output string
         temp_index << index;
      
         // the str() coverts number into string
         index_str = temp_index.str();
-
-        // std::cout << typeid(index_str).name() << std::endl;
-
-        filepath = "~/catkin_ws/src/bravobot/warmup/voices/" + foldername + "/" + length + "/" + index_str + ".wav";
+        
+        filepath = filepath + index_str + ".wav";
 
         return filepath;
     }
@@ -97,15 +103,6 @@ public:
     }
 
 };
-
-
-// void areaCallback(const std_msgs::String::ConstPtr& msg)
-// {
-//    ROS_INFO("I heard: [%s]", msg->data.c_str());
-//     curr_area = msg->data.c_str();
-
-//     // ROS_INFO("I'm currently by the [%s]", curr_area);
-// }
 
 
 int main(int argc, char **argv)
