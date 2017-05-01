@@ -185,7 +185,7 @@ target_link_libraries(detect_person
 #  ${catkin_LIBRARIES}
 #)
 target_link_libraries(sarcasm_handler
-  $catkin_LIBRARIES}
+  ${catkin_LIBRARIES}
 )  
 
 #############
