@@ -9,6 +9,7 @@
 #include <sstream>  // for string streams
 // #include <tuple>
 #include <typeinfo>
+#include <time.h>
 
 using namespace std;
 
@@ -69,7 +70,8 @@ public:
     }
 
     std::string generate_filepath(std::string foldername, std::string length){
-        index = rand() % 5; // Generates random file index # from 0-4
+        srand ( time(NULL) );
+        index = (rand() % 3) + 1; // Generates random file index # from 1 to n-1
 
         // Sending a number as a stream into output string
         temp_index << index;
@@ -79,7 +81,7 @@ public:
 
         // std::cout << typeid(index_str).name() << std::endl;
 
-        filepath = "./bravobot/warmup/voices/" + foldername + "/" + length + "/" + index_str;
+        filepath = "~/catkin_ws/src/bravobot/warmup/voices/" + foldername + "/" + length + "/" + index_str + ".wav";
 
         return filepath;
     }
