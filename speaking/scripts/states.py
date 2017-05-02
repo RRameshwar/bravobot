@@ -5,15 +5,20 @@ import rospy
 import smach
 import smach_ros
 from std_msgs.msg import String, Bool
+from speaking.srv import PlayVoice
 
 class Waiting(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['exit','newspace','samespace'])
+        self.enter_time = None
+        self.start_time = None
 
     def init(self):
-        self.loc_sub = rospy.Subscriber('/test', String, self.locationCb)
+        self.loc_sub = rospy.Subscriber('/area_updates', String, self.locationCb)
         self.exit_sub = rospy.Subscriber('stop', Bool, self.exitCb)
         self.locationChange = False
+        self.enter_time = None
+        self.start_time = rospy.Time.now()
         self.exit = False
 
     def sleep(self, outcome):
@@ -23,14 +28,17 @@ class Waiting(smach.State):
 
     def execute(self, userdata):
         self.init()
-        while not rospy.is_shutdown():
-            if self.locationChange:
+        while not rospy.Time.now()-rospy.Duration(5) > self.start_time:
+            if self.locationChange and rospy.Time.now()-rospy.Duration(1) > self.enter_time:
                 return self.sleep('newspace')
             if self.exit:
                 return self.sleep('exit')
+        return ('samespace')
 
     def locationCb(self, msg):
         self.locationChange = True
+        self.start_time = rospy.Time.now()
+        self.enter_time = rospy.Time.now()
 
     def exitCb(self, msg):
         if self.msg:
@@ -40,12 +48,15 @@ class Waiting(smach.State):
 class QuickComment(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['done','exit'])
-        sub = rospy.Subscriber('/test', String, self.locCb)
+        sub = rospy.Subscriber('/area_updates', String, self.locCb)
         self.area = None
         self.exit = False
+        self.start_time = None
+        self.play_sound = rospy.ServiceProxy('play_sarcasm', PlayVoice)
 
     def init(self):
         self.exit_sub = rospy.Subscriber('stop', Bool, self.exitCb)
+        self.start_time = rospy.Time.now()
 
     def sleep(self, outcome):
         self.exit_sub.unregister()
@@ -54,8 +65,13 @@ class QuickComment(smach.State):
     def execute(self, userdata):
         self.init()
         print '\n\n', self.area, '\n\n'
-        if self.exit:
-            return self.sleep('exit')
+        try:
+            self.play_sound('short')
+        except:
+            pass
+        while not rospy.Time.now()-rospy.Duration(3)>self.start_time:
+            if self.exit:
+                return self.sleep('exit')
         return self.sleep('done')
 
     def locCb(self, msg):
@@ -68,12 +84,15 @@ class QuickComment(smach.State):
 class LongComment(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['done','exit'])
-        sub = rospy.Subscriber('/test', String, self.locCb)
+        sub = rospy.Subscriber('/area_updates', String, self.locCb)
         self.area = None
         self.exit = False
+        self.start_time = None
+        self.play_sound = rospy.ServiceProxy('play_sarcasm', PlayVoice)
 
     def init(self):
         self.exit_sub = rospy.Subscriber('stop', Bool, self.exitCb)
+        self.start_time = rospy.Time.now()
 
     def sleep(self, outcome):
         self.exit_sub.unregister()
@@ -82,8 +101,13 @@ class LongComment(smach.State):
     def execute(self, userdata):
         self.init()
         print self.area
-        if self.exit:
-            return self.sleep('exit')
+        try:
+            self.play_sound('long')
+        except:
+            pass
+        while not rospy.Time.now()-rospy.Duration(10)>self.start_time:
+            if self.exit:
+                return self.sleep('exit')
         return self.sleep('done')
 
     def locCb(self, msg):
