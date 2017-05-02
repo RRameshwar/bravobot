@@ -2,6 +2,7 @@
 
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
+#include <std_msgs/Bool.h>
 
 class Monitor{
 
@@ -37,13 +38,13 @@ public:
             ros::Duration(1.0).sleep();
             tf_success = false;
         }
-
-        try{
+        try {
             listener.lookupTransform("/person", "/map",
-                                     ros::Time(0)-ros::Duration(5), old_transform);
+                                     ros::Time::now()-ros::Duration(5), old_transform);
         }
-        catch (tf::TransformException ex){
-            ROS_ERROR("%s",ex.what());
+        catch (...){//tf::TransformException ex) {
+            std::cout << "error" << std::endl;
+            //ROS_ERROR("%s", ex.what());
             ros::Duration(1.0).sleep();
             tf_success = false;
         }
@@ -69,7 +70,9 @@ public:
         if(msg){
             std::cout << "person stopped moving" << std::endl;
         }
-        personmonitor_pub_.publish(msg);
+        std_msgs::Bool pub_msg;
+        pub_msg.data = msg;
+        personmonitor_pub_.publish(pub_msg);
     }
 };
 
