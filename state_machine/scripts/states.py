@@ -5,6 +5,7 @@ import rospy
 import smach
 import smach_ros
 from std_msgs.msg import Bool
+from geometry_msgs.msg import Twist
 
 class IsReady(smach.State):
     """
@@ -30,6 +31,7 @@ class Standby(smach.State):
     def __init__(self):
         # initialie state - on system start
         smach.State.__init__(self, outcomes=['timeout', 'button'])
+	self.stop_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         self.button = False
 
     def on_button(self, msg):
@@ -40,6 +42,8 @@ class Standby(smach.State):
         # initialize state - on state start
         self.button_sub = rospy.Subscriber('/button', Bool, self.on_button)
         self.button = False
+	time.sleep(0.2)
+	self.stop_pub.publish(Twist())
 
     def exit(self, output):
         # shutdown state - on state end
@@ -52,9 +56,9 @@ class Standby(smach.State):
         self.state_init()
         start_time = rospy.Time.now()
         while not self.button:
-            if rospy.Time.now() - start_time > rospy.Duration(20):
+            if rospy.Time.now() - start_time > rospy.Duration(60):
                 # on timeout
-                return self.exit('timeout')s
+                return self.exit('timeout')
             time.sleep(1)
         return self.exit('button') # if button is pressed
         
@@ -146,6 +150,7 @@ class Wait(smach.State):
     def __init__(self):
         # initialie state - on system start
         smach.State.__init__(self, outcomes=['timeout', 'button'])
+	self.stop_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         self.button = False
 
     def on_button(self, msg):
@@ -156,6 +161,9 @@ class Wait(smach.State):
         # initialize state - on state start
         self.button_sub = rospy.Subscriber('/button', Bool, self.on_button)
         self.button = False
+	time.sleep(.02)
+	self.stop_pub.publish(Twist())
+
 
     def exit(self, output):
         # shutdown state - on state end

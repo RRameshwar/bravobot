@@ -1,0 +1,5 @@
+<launch>
+    <arg name="map" default="2ndfloor_firsthalf_full.yaml"/>
+    <node pkg="map_server" type="map_server" name="map_server" args="$(find warmup)/maps/$(arg map)" output="screen"/>
+    <node pkg="amcl" type="amcl" name="particle_filter" output="screen"/>
+</launch>

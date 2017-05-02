@@ -82,6 +82,14 @@ public:
     laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
     laserRecieved = false;
 
+    h_min = 20;
+    h_max = 160;
+    s_min = 0;
+    s_max = 255;
+    v_min = 0;
+    v_max = 100;
+
+
   }
 
   void init(){
@@ -330,7 +338,7 @@ public:
     for (int j = 0; j < height; j++){
       for (int i = 0; i < width; i++){
         cv::Scalar color = input.at<uchar>(cv::Point(i, j));
-        if (color.val[0] > 150){
+        if (color.val[0] > 200){
           xsum += i;
           ysum += j;
           numPoints ++;

@@ -1,7 +1,9 @@
 <launch>
+    <group ns="person_follow">
 
 	<node name="blob_detect" pkg="warmup" type="blob_detect" output="screen"/>
 
 	<node name="detect_person" pkg="warmup" type="detect_person"/>
-	
+    </group>
+
 </launch>
