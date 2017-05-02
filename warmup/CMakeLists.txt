@@ -54,6 +54,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  ColorThreshold.msg
   LidarCone.msg
 )
 
@@ -75,6 +76,7 @@ add_message_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################
@@ -140,10 +142,21 @@ add_executable(calibration_server src/calibration_server.cpp)
 add_executable(test_slic src/test_slic.cpp)
 add_executable(blob_detect src/blob_detect.cpp)
 add_executable(detect_person src/detect_person.cpp)
+add_executable(color_detect src/color_detect_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(warmup_node ${PROJECT_NAME}_gencfg)
+add_dependencies(warmup_node ${PROJECT_NAME}_generate_messages_cpp)
+
+add_dependencies(blob_detect ${PROJECT_NAME}_gencfg)
+add_dependencies(blob_detect ${PROJECT_NAME}_generate_messages_cpp)
+
+add_dependencies(detect_person ${PROJECT_NAME}_gencfg)
+add_dependencies(detect_person ${PROJECT_NAME}_generate_messages_cpp)
+
+add_dependencies(calibration_server ${PROJECT_NAME}_gencfg)
+add_dependencies(calibration_server ${PROJECT_NAME}_generate_messages_cpp)
 
 
 ## Specify libraries to link a library or executable target against
@@ -165,6 +178,9 @@ target_link_libraries(blob_detect
   ${catkin_LIBRARIES}
 )
 target_link_libraries(detect_person
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(color_detect
   ${catkin_LIBRARIES}
 )
 

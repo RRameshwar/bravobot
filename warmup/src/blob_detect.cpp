@@ -8,8 +8,11 @@
 #include <boost/thread/mutex.hpp>
 #include <iostream>
 #include <warmup/LidarCone.h>
+#include <warmup/ColorThreshold.h>
 #include <stdio.h>
+#include <std_msgs/Bool.h>
 #include <geometry_msgs/Point.h>
+#include <tf/transform_broadcaster.h>
 
 /* From test_slic.cpp */
 #include <opencv/cv.h>
@@ -22,23 +25,28 @@ using namespace std;
 
 #include "slic.h"
 
-//static const std::string OPENCV_WINDOW = "Image window";
+static const std::string OPENCV_WINDOW = "Image window";
 
 // ROS -> OpenCV -> RGB-Depth?!
 class ImageConverter
 {
   ros::NodeHandle nh_;
 
+  // start/stop
+  ros::Subscriber start_sub_;
+  ros::Subscriber stop_sub_;
   // Camera
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
-  image_transport::Publisher image_pub_;
 
   // Lidar
   ros::Subscriber laser_sub_;
   ros::Publisher laser_pub_;
+  bool laserRecieved;
 
+  // output
   ros::Publisher com_pub_;
+  tf::TransformBroadcaster br_;
 
   float lastScan_[512];
   boost::mutex lastScan__mutex_;
@@ -49,39 +57,66 @@ class ImageConverter
 
   // dynamic reconfigure
   ros::Subscriber reconfig_sub_;
-
-  bool verbose_;
-  bool do_graph_;
-  bool do_slic_;
+  ros::Subscriber threshold_sub_;
 
   int counter;
 
+  uint h_min;
+  uint h_max;
+  uint s_min;
+  uint s_max;
+  uint v_min;
+  uint v_max;
+
 public:
   ImageConverter()
-    : it_(nh_)
-  {
+    : it_(nh_) {
+    // subscribe to updated color threshold
+    threshold_sub_ = nh_.subscribe<warmup::ColorThreshold>("/color_threshold", 1, &ImageConverter::thresholdCB, this);
+
+    start_sub_ = nh_.subscribe<std_msgs::Bool>("start", 1, &ImageConverter::startCb, this);
+
+    //Publishes position of center of pass
+    com_pub_ = nh_.advertise<geometry_msgs::Point>("center_of_mass", 1);
+
+    laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
+    laserRecieved = false;
+
+    h_min = 20;
+    h_max = 160;
+    s_min = 0;
+    s_max = 255;
+    v_min = 0;
+    v_max = 100;
+
+
+  }
+
+  void init(){
+    laserRecieved = false;
+    stop_sub_ = nh_.subscribe<std_msgs::Bool>("stop", 1, &ImageConverter::stopCb, this);
+
     // Subscribe to input video feed and publish output video feed
     image_sub_ = it_.subscribe("/image_raw", 1, &ImageConverter::imageCb, this);
-    image_pub_ = it_.advertise("/image_converter/output_video", 1);
 
     // Subscribe to laser scan data
     laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &ImageConverter::laserScanCallback, this);
-    laser_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_cone", 1000);
-
-    //Publishes position of center of pass
-    com_pub_ = nh_.advertise<geometry_msgs::Point>("/center_of_mass", 1);
 
     reconfig_sub_ = nh_.subscribe<warmup::LidarCone>("dynamic_reconfigure/sensor_cone", 1, &ImageConverter::reconfigCb, this);
     //cv::setMouseCallback(OPENCV_WINDOW, &ImageConverter::processMouseEvent);
     //cv::namedWindow(OPENCV_WINDOW);
 
-    verbose_ = false;
-    do_graph_ = false;
-    do_slic_ = false;
 
     /* Calibrated values for bravobot based on dynamic reconfigure test */
-    rightEdgeScanIndex_ = 345;
-    leftEdgeScanIndex_ = 180;
+    rightEdgeScanIndex_ = 358;
+    leftEdgeScanIndex_ = 187;
+  }
+
+  void sleep(){
+    image_sub_.shutdown();
+    laser_sub_.shutdown();
+    reconfig_sub_.shutdown();
+    stop_sub_.shutdown();
   }
 
   ~ImageConverter()
@@ -89,8 +124,36 @@ public:
     //cv::destroyWindow(OPENCV_WINDOW);
   }
 
+  void thresholdCB(const warmup::ColorThreshold msg){
+    h_min = msg.min.x;
+    s_min = msg.min.y;
+    v_min = msg.min.z;
+    h_max = msg.max.x;
+    s_max = msg.max.y;
+    v_max = msg.max.z;
+
+    std::cout<<h_min<<" "<<h_max<<std::endl;
+    std::cout<<s_min<<" "<<s_max<<std::endl;
+    std::cout<<v_min<<" "<<v_max<<std::endl;
+  }
+
+  void startCb(const std_msgs::Bool msg){
+    std::cout << "starting person follow" << std::endl;
+    if (msg.data) {
+      init();
+    }
+  }
+
+  void stopCb(const std_msgs::Bool msg){
+    std::cout << "stopping person follow" << std::endl;
+    sleep();
+  }
+
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   {
+    if (!laserRecieved){
+      return;
+    }
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -110,7 +173,7 @@ public:
 
     //blob detection wheeeee
     cv::Mat threshold_image;
-    inRange(hsv_image, cv::Scalar(20, 0, 0), cv::Scalar(160, 255, 100), threshold_image);
+    inRange(hsv_image, cv::Scalar(h_min, s_min, v_min), cv::Scalar(h_max, s_max, v_max), threshold_image);
 
     int scan_width = rightEdgeScanIndex_ - leftEdgeScanIndex_;
 
@@ -138,7 +201,7 @@ public:
     cv::Mat img_eroded;
     cv::Mat img_dilated;
 
-    std::cout << small_color_threshold.size() << std::endl;
+    //std::cout << small_color_threshold.size() << std::endl;
     
     inRange(small_color_threshold, cv::Scalar(180, 0, 0), cv::Scalar(255, 255, 255), small_depth_thresh);
 
@@ -148,6 +211,28 @@ public:
 
     cv::Point com = center_of_mass(img_eroded);
 
+    //find 3D position of person
+    int com_scan = (rightEdgeScanIndex_ - leftEdgeScanIndex_)/2-com.x+leftEdgeScanIndex_; //lidar index of person
+    float person_r = 1000;
+    for (int i=-15; i<=15; i++){
+      if (com_scan-i > 0 && com_scan+i<512) {
+        float range = lastScan_[com_scan + i];
+        if (range < person_r) {
+          person_r = range;
+        }
+      }
+    }
+    float person_angle = com_scan*3.14/512 - 1.57;
+    float x = polar_to_cart_x(person_r, person_angle);
+    float y = polar_to_cart_y(person_r, person_angle);
+
+
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(x, y, 0.0));
+    br_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "base_link", "person"));
+    //std::cout << "radius: " << person_r << "  angle: " << person_angle*180/3.14 << "  scan: " << com_scan << std::endl;
+    //std::cout << "x: " << x << "  y: " << y << std::endl;
+
     //Publish center of mass to /center_of_mass
     geometry_msgs::Point com_output;
     com_output.x = com.x;
@@ -155,7 +240,7 @@ public:
     com_pub_.publish(com_output);
 
     
-    /*/ for viewing
+    // for viewing
     com.x += img_eroded.cols/2;
     com.y = -1*(com.y - img_eroded.rows/2);
 
@@ -165,33 +250,24 @@ public:
     cv::resize(img_dilated, img_dilated, threshold_image.size());
     
     //cv::imshow("threshold_image", threshold_image);
-    cv::imshow("small_depth_thresh", small_depth_thresh);
-    cv::imshow("img_eroded", img_eroded);
-    cv::imshow("color_threshold", threshold_image);
+    //cv::imshow("small_depth_thresh", small_depth_thresh);
+    //cv::imshow("img_eroded", img_eroded);
+    //cv::imshow("color_threshold", threshold_image);
     // cv::imwrite("Screenshot.bmp", graph);
-    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
-    cv::waitKey(3);
-    */
+    //cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    //cv::waitKey(3);
+    //
     // Output modified video stream
     
 
   }
 
 
-  int convertScanRangeToCameraDepth(float range)
-  {
-    return int(128.0 / range);
-  }
-
   bool isScanRangeInCone(unsigned int scanRangeIndex)
   {
     return scanRangeIndex < rightEdgeScanIndex_ && scanRangeIndex > leftEdgeScanIndex_; 
   }
 
-  static void processMouseEvent(int event, int x, int y, int, void* )
-  {
-    ROS_INFO("TODO: implement some command that hovers and prints the rgb color value");
-  }
 
   void reconfigCb(warmup::LidarCone msg) {
     boost::mutex::scoped_lock reconfig_lock(reconfig_mutex_); 
@@ -203,6 +279,7 @@ public:
   {
     unsigned int size = msg.ranges.size();
     scanSize_= size;
+    laserRecieved = true;
 
     // TODO(rlouie): set the right/left edges of sensor fusion cone by calibration
     /* rightEdgeScanIndex_ = size*7/12; */
@@ -244,9 +321,9 @@ public:
       }
     }
 
-    // 
+    //
     // Publish
-    // 
+    //
     laser_pub_.publish(msg);
   }
 
@@ -261,7 +338,7 @@ public:
     for (int j = 0; j < height; j++){
       for (int i = 0; i < width; i++){
         cv::Scalar color = input.at<uchar>(cv::Point(i, j));
-        if (color.val[0] > 150){
+        if (color.val[0] > 200){
           xsum += i;
           ysum += j;
           numPoints ++;
@@ -274,6 +351,13 @@ public:
     com.y = (int)((-1*ysum/numPoints) + (height/2));
 
     return com;
+  }
+
+  float polar_to_cart_x(float r, float theta){
+    return r*cos(theta);
+  }
+  float polar_to_cart_y(float r, float theta){
+    return r*sin(theta);
   }
 
   void blech (cv::Mat input){

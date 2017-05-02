@@ -1,0 +1,28 @@
+<launch>
+
+	<arg name="arduino_port" default="/dev/ttyACM0"/>
+	<arg name="lidar_port" default="/dev/ttyACM1"/>
+    <arg name="camera_port" default="/dev/video0"/>
+
+
+    <param name="hokuyo_node/port" value="$(arg lidar_port)"/>
+	<node name="hokuyo_node" pkg="hokuyo_node" type="hokuyo_node"/>
+
+	<node name="uvc_camera_node" pkg="uvc_camera" type="uvc_camera_node" >
+	  <param name="device" value="$(arg camera_port)"/>
+	  <param name="width" value="640"/>
+	  <param name="height" value="480"/>
+	  <param name="camera_info_url" value="file:///opt/ros/indigo/share/uvc_camera/camera_calibration.yaml"/>
+        </node>
+	<node name="phidgets_imu_node" pkg="phidgets_imu" type="phidgets_imu_node"/>
+
+	<node name="hindbrain" pkg="rosserial_python" type="serial_node.py">
+	  <param name="port" value="$(arg arduino_port)"/>
+	</node>
+
+	<node pkg="tf" type="static_transform_publisher" name="laser_link" args="0.5 0 0.15 0 0 0 1 base_link laser 100" />
+
+
+	<include file="$(find diff_drive)/launch/odom_calc.launch"/>
+	
+</launch>

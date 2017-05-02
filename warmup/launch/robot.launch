@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="arduino_port" default="/dev/ttyACM0"/>
+  <arg name="hokuyo_port" default="/dev/ttyACM1"/>
+
+  <param name="hokuyo_node/port" value="$(arg hokuyo_port)"/>
+
+  <node pkg="tf" type="static_transform_publisher" name="laser_link" args="0.5 0 0.15 0 0 0 1 base_link laser 100" />
+
+
+
+  <include file="$(find warmup)/launch/sensors.launch"/>
+  
+  <node name="hindbrain" pkg="rosserial_python" type="serial_node.py">
+    <param name="port" value="$(arg arduino_port)"/>
+  </node>
+
+
+  <!-- just wheel encoders -->
+  <!--<include file="$(find diff_drive)/launch/odom_calc.launch"/>-->
+
+  <!-- wheel encoders + imu -->
+  <!--include file="$(find alpha_localization)/launch/localization.launch"/-->
+</launch>

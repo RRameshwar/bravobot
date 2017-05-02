@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
+#include <std_msgs/Bool.h>
 #include <sensor_msgs/image_encodings.h>
 #include "sensor_msgs/LaserScan.h"
 #include <opencv2/imgproc/imgproc.hpp>
@@ -25,6 +26,11 @@ class PersonDetect
 {
   ros::NodeHandle nh_;
 
+  // start/stop
+  ros::Subscriber start_sub_;
+  ros::Subscriber stop_sub_;
+  bool pub_;
+
   //Receive an image, publish a twist
   ros::Subscriber laser_sub_;
   ros::Subscriber pos_sub_;
@@ -36,11 +42,37 @@ class PersonDetect
 
 public:
 
-	PersonDetect (){
-		dist_nearest_object = 0;
-		laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &PersonDetect::laserScanCallback, this);
-		pos_sub_ = nh_.subscribe<geometry_msgs::Point>("/center_of_mass", 1000, &PersonDetect::COMCallback, this);
+	PersonDetect () {
 		twist_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+		dist_nearest_object = 0;
+		start_sub_ = nh_.subscribe<std_msgs::Bool>("start", 1, &PersonDetect::startCb, this);
+		pub_ = false;
+	}
+
+	void init(){
+		laser_sub_ = nh_.subscribe<sensor_msgs::LaserScan>("/scan", 1000, &PersonDetect::laserScanCallback, this);
+		pos_sub_ = nh_.subscribe<geometry_msgs::Point>("center_of_mass", 1000, &PersonDetect::COMCallback, this);
+		stop_sub_ = nh_.subscribe<std_msgs::Bool>("stop", 1, &PersonDetect::stopCb, this);
+		pub_ = true;
+	}
+
+	void sleep(){
+		laser_sub_.shutdown();
+		pos_sub_.shutdown();
+		stop_sub_.shutdown();
+		pub_ = false;
+	}
+
+	void startCb(const std_msgs::Bool msg){
+		if (msg.data) {
+			init();
+		}
+	}
+
+	void stopCb(const std_msgs::Bool msg){
+		if (msg.data) {
+			sleep();
+		}
 	}
 
 	void laserScanCallback (sensor_msgs::LaserScan msg){
@@ -73,21 +105,26 @@ public:
 		if (input>max){
 			return max;
 		}
+		if (input > 0.01 && input < 0.1){
+			return 0.1;
+		}
+		if (input < -.01 && input > -0.1){
+			return -0.1;
+		}
 		return input;
 	}
 
 	void run (){
-		//SPeeeeeeeed
-		//ROTATionnnNNNnn
-		float speed = lim((dist_nearest_object-1)/3, -1, 1);
-		float angle = lim(-1*((float)pos_person.x)/100, -1, 1);
-		std::cout << pos_person.x << std::endl;
-		geometry_msgs::Twist output;
-		output.linear.x=speed;
-		output.angular.z=angle;
-		twist_pub_.publish(output);
+		if (pub_) {
+			float speed = lim(pow((dist_nearest_object - 0.6) *3,3), -1, 1);
+			float angle = lim(-1 * ((float) pos_person.x) / 500, -1, 1);
+			std::cout << pos_person.x << std::endl;
+			geometry_msgs::Twist output;
+			output.linear.x = speed;
+			output.angular.z = angle;
+			twist_pub_.publish(output);
+		}
 	}
-
 };
 
 int main(int argc, char** argv) {

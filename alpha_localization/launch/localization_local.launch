@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Localization - local -->
+	<node pkg="robot_localization" type="ukf_localization_node" name="ukf_localization_local" output="screen">
+		<rosparam command="load" file="$(find alpha_localization)/config/localization_local.yaml" />
+		<remap from="/odometry/filtered" to="/odometry/filtered/local"/>
+	</node>
+</launch>

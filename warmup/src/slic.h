@@ -48,6 +48,14 @@ class Slic {
         /* The number of occurences of each center. */
         vector<int> center_counts;
         
+        /* The mean colours of each superpixel */
+        vector<CvScalar> colours;
+
+        /* The cluster labels of Meanshift */
+        vec2dd modes;
+        /* The mapping of indexes of examples to modes */
+        vector<int> indexmap;
+
         /* The step size per cluster, and the colour (nc) and distance (ns)
          * parameters. */
         int step, nc, ns;
@@ -57,6 +65,8 @@ class Slic {
         /* Find the pixel with the lowest gradient in a 3x3 surrounding. */
         CvPoint find_local_minimum(IplImage *image, CvPoint center);
         
+        void compute_cluster_means(IplImage *image);
+
         /* Remove and initialize the 2d vectors. */
         void clear_data();
         void init_data(IplImage *image);
@@ -75,7 +85,12 @@ class Slic {
         void display_center_grid(IplImage *image, CvScalar colour);
         void display_contours(IplImage *image, CvScalar colour);
         void colour_with_cluster_means(IplImage *image);
-        void two_level_cluster(IplImage *image, CvScalar template_color, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance); 
+
+        /* Clustering on top of superpixels, and finding template colors */
+        void two_level_cluster(IplImage *image, int kernel_type, double kernel_bandwidth , int dim, double mode_tolerance); 
+        CvScalar calibrate_template_color(IplImage *image, IplImage *depth_channel); 
+        vector<CvScalar> get_leg_color(IplImage *image, IplImage *depth_channel); 
+        /* void compare_template_color(IplImage *image, CvScalar template_color); */
 	
 	/* helper stats functions */
 	double mu(vector<double> v);
