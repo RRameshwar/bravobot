@@ -30,10 +30,11 @@ public:
 
     SarcasmSelect()
     {
-        area_sub = n.subscribe<std_msgs::String>("/area_updates",
-                                                 1,
-                                                 &SarcasmSelect::areaCallback,
-                                                 this);
+        area_sub = n.subscribe<std_msgs::String>(
+            "/area_updates",
+            1,
+            &SarcasmSelect::areaCallback,
+            this);
 
         service = n.advertiseService("play_sarcasm",
                                      &SarcasmSelect::serviceCallback,
@@ -44,9 +45,6 @@ public:
     {
         ROS_INFO("I heard: [%s]", msg->data.c_str());
         curr_area = msg->data.c_str();
-
-        
-        // ROS_INFO("I'm currently by the [%s]", curr_area);
     }
 
     int numFilesInDir(std::string filepath) {
@@ -62,7 +60,11 @@ public:
         return num_files;
     }
 
-    bool generate_filepath(std::string foldername, std::string length, std::string &filepath){
+    bool generate_filepath(
+            std::string foldername,
+            std::string length,
+            std::string &filepath)
+    {
         srand ( time(NULL) );
 
         filepath = "~/catkin_ws/src/bravobot/speaking/voices/" + foldername + "/" + length + "/";
@@ -110,7 +112,9 @@ public:
                          speaking::PlayVoice::Response &res)
     {
         std::string gen_filepath;
-        bool success = generate_filepath(curr_area, "short", gen_filepath);
+        bool success = generate_filepath(curr_area,
+                                         req.length,
+                                         gen_filepath);
         if (success)
         {
             std::cout << "Playing filepath" << gen_filepath << std::endl;
