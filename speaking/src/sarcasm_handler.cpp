@@ -7,15 +7,16 @@
 #include "boost/filesystem.hpp"
 #include <iterator> // std::distance
 #include <sstream>  // for string streams
-// #include <tuple>
 #include <time.h>
 #include <wordexp.h> // turning ~ -> /home/odroid
+#include "speaking/PlayVoice.h"
 
 
 class SarcasmSelect
 {
     ros::NodeHandle n;
     ros::Subscriber area_sub;
+    ros::ServiceServer service;
 
     std::string curr_area;
     std::string filepath;
@@ -29,8 +30,14 @@ public:
 
     SarcasmSelect()
     {
-        area_sub = n.subscribe<std_msgs::String>("/area_updates", 1000, &SarcasmSelect::areaCallback, this);
-        // ros::Publisher filepath_pub = n.advertise<std_msgs::String>("wav_file", filepath);
+        area_sub = n.subscribe<std_msgs::String>("/area_updates",
+                                                 1,
+                                                 &SarcasmSelect::areaCallback,
+                                                 this);
+
+        service = n.advertiseService("play_sarcasm",
+                                     &SarcasmSelect::serviceCallback,
+                                     this);
     }
 
     void areaCallback(const std_msgs::String::ConstPtr& msg)
@@ -38,14 +45,7 @@ public:
         ROS_INFO("I heard: [%s]", msg->data.c_str());
         curr_area = msg->data.c_str();
 
-        std::string gen_filepath;
-        bool success = generate_filepath(curr_area, "short", gen_filepath);
-        if (success)
-        {
-            std::cout << "Playing filepath" << gen_filepath << std::endl;
-
-            play_sound(gen_filepath);
-        }
+        
         // ROS_INFO("I'm currently by the [%s]", curr_area);
     }
 
@@ -65,7 +65,7 @@ public:
     bool generate_filepath(std::string foldername, std::string length, std::string &filepath){
         srand ( time(NULL) );
 
-        filepath = "~/catkin_ws/src/bravobot/warmup/voices/" + foldername + "/" + length + "/";
+        filepath = "~/catkin_ws/src/bravobot/speaking/voices/" + foldername + "/" + length + "/";
 
         std::cout << filepath << std::endl;
         
@@ -106,6 +106,25 @@ public:
         return;
     }
 
+    bool serviceCallback(speaking::PlayVoice::Request &req,
+                         speaking::PlayVoice::Response &res)
+    {
+        std::string gen_filepath;
+        bool success = generate_filepath(curr_area, "short", gen_filepath);
+        if (success)
+        {
+            std::cout << "Playing filepath" << gen_filepath << std::endl;
+
+            play_sound(gen_filepath);
+
+            return true;
+        }
+        else
+        {
+            return false;
+        } 
+    }
+
 };
 
 
@@ -116,11 +135,6 @@ int main(int argc, char **argv)
 
     SarcasmSelect ss;
 
-    // while (ros::ok){
-    //     // Insert code for determining long or short comment
-    //     // std::string gen_filepath = ss.generate_filepath("Robolab", "short");
-    //     std::cout << "Play file: " << gen_filepath << std::endl;
-    // }
 
     ros::spin();
 

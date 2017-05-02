@@ -143,7 +143,6 @@ add_executable(test_slic src/test_slic.cpp)
 add_executable(blob_detect src/blob_detect.cpp)
 add_executable(detect_person src/detect_person.cpp)
 add_executable(color_detect src/color_detect_node.cpp)
-add_executable(sarcasm_handler src/sarcasm_handler.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -184,9 +183,6 @@ target_link_libraries(detect_person
 target_link_libraries(color_detect
   ${catkin_LIBRARIES}
 )
-target_link_libraries(sarcasm_handler
-  ${catkin_LIBRARIES}
-)  
 
 #############
 ## Install ##
