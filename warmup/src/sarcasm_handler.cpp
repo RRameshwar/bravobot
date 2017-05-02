@@ -22,7 +22,6 @@ class SarcasmSelect
     // std::string foldername;
     // std::string length;
     std::string index_str;
-    std::ostringstream temp_index;
     int index;
     // std::map <char, std::string> color_dict;
     
@@ -39,11 +38,14 @@ public:
         ROS_INFO("I heard: [%s]", msg->data.c_str());
         curr_area = msg->data.c_str();
 
-        std::string gen_filepath = generate_filepath(curr_area, "short");
-        std::cout << "Playing filepath" << gen_filepath << std::endl;
+        std::string gen_filepath;
+        bool success = generate_filepath(curr_area, "short", gen_filepath);
+        if (success)
+        {
+            std::cout << "Playing filepath" << gen_filepath << std::endl;
 
-        play_sound(gen_filepath);
-
+            play_sound(gen_filepath);
+        }
         // ROS_INFO("I'm currently by the [%s]", curr_area);
     }
 
@@ -60,7 +62,7 @@ public:
         return num_files;
     }
 
-    std::string generate_filepath(std::string foldername, std::string length){
+    bool generate_filepath(std::string foldername, std::string length, std::string &filepath){
         srand ( time(NULL) );
 
         filepath = "~/catkin_ws/src/bravobot/warmup/voices/" + foldername + "/" + length + "/";
@@ -75,13 +77,15 @@ public:
         }
         catch (boost::filesystem::filesystem_error& e)
         {
+            // directory does not exist
             std::cout << e.what() << std::endl;
-            return 0;
+            return false; // false on failure
         }
 
         
         index = (rand() % num_files) + 1; // Generates random file index # from 1 to n-1
         // Sending a number as a stream into output string
+        std::ostringstream temp_index;
         temp_index << index;
      
         // the str() coverts number into string
@@ -89,7 +93,7 @@ public:
         
         filepath = filepath + index_str + ".wav";
 
-        return filepath;
+        return true; // true on success
     }
 
     void play_sound(std::string sound_filepath){

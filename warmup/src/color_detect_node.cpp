@@ -94,7 +94,8 @@ public:
                 else if (current_color == cv::Vec3b(0,255,255) && location !=3)
 		{
 			location = 3; //SCOPE posters
-			new_msg.data = "SCOPEpost";
+			//new_msg.data = "SCOPEpost";
+			new_msg.data = "scope_posters";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(255,255,0) && location !=4)
@@ -106,43 +107,50 @@ public:
                 else if (current_color == cv::Vec3b(255,0,255) && location !=5)
 		{
 			location = 5; //robolab hallway
-			new_msg.data = "ROBOhall";
+			//new_msg.data = "ROBOhall";
+			new_msg.data = "robolab";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(255,0,0) && location !=6)
 		{
 			location = 6; //Drew's side of RoboLab
-			new_msg.data = "ROBOdrew";
+			//new_msg.data = "ROBOdrew";
+			new_msg.data = "robolab";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(0,0,255) && location !=7)
 		{
 			location = 7; //video screen in robolab hallway
-			new_msg.data = "ROBOscreen";
+			//new_msg.data = "ROBOscreen";
+			new_msg.data = "robolab";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(0,255,0) && location !=8)
 		{
 			location = 8; //Dave's side of RoboLab
-			new_msg.data = "ROBOdave";
+			//new_msg.data = "ROBOdave";
+			new_msg.data = "robolab";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(0,255,135) && location !=9)
 		{
 			location = 9; //Scope Wall
-			new_msg.data = "SCOPEwall";
+			//new_msg.data = "SCOPEwall";
+			new_msg.data = "scope_ad";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(255,135,255) && location !=10)
 		{
 			location = 10; //plywood carts
-			new_msg.data = "plywood";
+			//new_msg.data = "plywood";
+			new_msg.data = "lpb_r";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(255,135,0) && location !=11)
 		{
 			location = 11; //trash
-			new_msg.data = "trash";
+			//new_msg.data = "trash";
+			new_msg.data = "lpb_r";
 			location_pub_.publish(new_msg);
 		}
                 else if (current_color == cv::Vec3b(135,255,0) && location !=12)
