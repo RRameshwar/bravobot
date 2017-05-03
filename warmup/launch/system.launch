@@ -4,4 +4,5 @@
 	<include file='$(find warmup)/launch/person_follow.launch'/>
 	<node pkg='state_machine' type='state_machine_manager.py' name='state_machine' output='screen'/>
 	<include file='$(find warmup)/launch/localizer.launch'/>
+	<include file='$(find speaking)/launch/speaking.launch'/>
 </launch>
