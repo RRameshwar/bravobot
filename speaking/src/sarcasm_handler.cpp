@@ -20,11 +20,8 @@ class SarcasmSelect
 
     std::string curr_area;
     std::string filepath;
-    // std::string foldername;
-    // std::string length;
     std::string index_str;
     int index;
-    // std::map <char, std::string> color_dict;
     
 public:
 
@@ -84,8 +81,8 @@ public:
             return false; // false on failure
         }
 
-        
-        index = (rand() % num_files) + 1; // Generates random file index # from 1 to n-1
+        // Generates random file index # from 1 to n-1
+        index = (rand() % num_files) + 1;
         // Sending a number as a stream into output string
         std::ostringstream temp_index;
         temp_index << index;
@@ -145,51 +142,3 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// class SarcasmSelect
-// {
-
-//     char index[4];
-//     std::map <char, string> color_dict;
-
-//     color_dict["212"] = 'Blossom Pink'; // Scrap plywood carts
-//     color_dict["002"] = 'Blue';         // Drew's lab
-//     color_dict["022"] = 'Cyan';         // A+A studio
-//     color_dict["020"] = 'Green';        // Dave's lab
-//     color_dict["112"] = 'Lavender';     // Inaccesible areas
-//     color_dict["202"] = 'Magenta';      // Sharks + marine life above Robolab
-//     color_dict["100"] = 'Maroon';       // ADE project and whiteboard dump
-//     color_dict["210"] = 'Orange';       // Boats
-//     color_dict["200"] = 'Red';          // Robolab screen
-//     color_dict["021"] = 'Sea Green';    // Investigating Normal wall
-//     color_dict["012"] = 'Sky Blue';     // Garbage bin
-//     color_dict["120"] = 'Spring Green'; // SCOPE wall
-//     color_dict["220"] = 'Yellow';       // SCOPE posters
-
-// public:
-
-//     int rgb_to_dict(passed_rgb, passed_color){
-//         if(color[passed_rgb] = 0){
-//             return 0;
-//         }
-//         else if(color[passed_rgb] > 0){
-//             return 1;
-//         }
-//         else(color[passed_rgb] > 135){
-//             return 2;
-//         }
-//     }
-
-//     char color_id(passed_zone_rgb){
-//         for (int rgb = 0:2){
-//             digit = rgb_to_dict(rgb, color);
-//             strcat(index,digit);
-//         }
-
-//         return color_dict[index];
-//     }
-// };
-
-// int main(int argc, char** argv) 
-// {
-//     string hallway_region = color_id(zone_rgb);
-// }

@@ -1,0 +1,6 @@
+<launch>
+
+    <node name="speaking_state_machine" pkg="speaking" type="manager.py" output='screen'/>
+    <node name="play_voice" pkg="speaking" type="sarcasm_handler" output='screen'/>
+
+</launch>
