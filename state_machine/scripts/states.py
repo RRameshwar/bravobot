@@ -38,6 +38,7 @@ class Standby(smach.State):
 
     def on_button(self, msg):
         # button callback
+	print 'button'
         self.button = msg.data
 
     def state_init(self):
@@ -166,7 +167,7 @@ class Wait(smach.State):
         # initialize state - on state start
         self.button_sub = rospy.Subscriber('/button', Bool, self.on_button)
         self.button = False
-	time.sleep(.02)
+	time.sleep(.05)
 	self.stop_pub.publish(Twist())
         light_pub.publish(Int16(5))
 
