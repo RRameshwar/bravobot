@@ -4,8 +4,10 @@ import time
 import rospy
 import smach
 import smach_ros
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int16
 from geometry_msgs.msg import Twist
+
+light_pub = rospy.Publisher('/light_mode', Int16, queue_size=1)
 
 class IsReady(smach.State):
     """
@@ -44,6 +46,7 @@ class Standby(smach.State):
         self.button = False
 	time.sleep(0.2)
 	self.stop_pub.publish(Twist())
+        light_pub.publish(Int16(7))
 
     def exit(self, output):
         # shutdown state - on state end
@@ -84,6 +87,7 @@ class Calibrate(smach.State):
         self.person_sub = rospy.Subscriber('/calibrator/stop', Bool, self.on_person)
         time.sleep(0.5) # give publisher time to initialize
         self.start_calibrate.publish(Bool(True)) # publish to start calibrate nodes
+        light_pub.publish(Int16(6))
 
     def exit(self, output):
         # shutdown state - on state end
@@ -124,6 +128,7 @@ class PersonFollow(smach.State):
         self.button_sub = rospy.Subscriber('/button', Bool, self.on_exit_request)
         time.sleep(0.5) # give publisher time to initialize
         self.start_state.publish(Bool(True)) # publish to start calibrate nodes
+        light_pub.publish(Int16(0))
 
     def exit(self, output):
         # shutdown state - on state end
@@ -163,6 +168,7 @@ class Wait(smach.State):
         self.button = False
 	time.sleep(.02)
 	self.stop_pub.publish(Twist())
+        light_pub.publish(Int16(5))
 
 
     def exit(self, output):
@@ -200,6 +206,7 @@ class Complain(smach.State):
         self.button_sub = rospy.Subscriber('/button', Bool, self.on_button)
         print 'why are you turning me off?\n are you dissatisfied with your tour?'
         self.button = False
+        light_pub.publish(Int16(3))
 
     def exit(self, output):
         # shutdown state - on state end
