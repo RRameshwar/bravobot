@@ -1,5 +1,5 @@
 <launch>
-
+    <node name="location_finder" pkg="warmup" type="color_detect"/>
     <node name="speaking_state_machine" pkg="speaking" type="manager.py" output='screen'/>
     <node name="play_voice" pkg="speaking" type="sarcasm_handler" output='screen'/>
 
