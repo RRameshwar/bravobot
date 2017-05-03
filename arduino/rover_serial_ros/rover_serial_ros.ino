@@ -29,6 +29,7 @@ const int IR_2_pin = A14;
 const int kill_pin = A4;
 const int led_1 = 13;
 const int headlight_left=39;
+const int button_pin=46;
 
 
 #define NO_MOTION LOW
@@ -46,7 +47,8 @@ std_msgs::Int32 leftEncCnt;
 std_msgs::Int32 rightEncCnt;
 ros::Publisher leftEnc_pub("left_encoder", &leftEncCnt);
 ros::Publisher rightEnc_pub("right_encoder", &rightEncCnt);
-
+std_msgs::Bool button_change;
+ros::Publisher button_pub("button", &button_change);
 
 int flash_rate=100;
 int light_mode=0;
@@ -80,6 +82,7 @@ int count = 0; // blink time (in loop cycles)
 bool kill = LOW;
 bool estop = LOW;
 bool ir_stop = LOW;
+bool button_state = LOW;
 
 int IR_1;
 int IR_2;
@@ -96,6 +99,7 @@ void setup() {
   nh.advertise(estop_pub);
   nh.advertise(irstop_pub);
   nh.advertise(leftEnc_pub);
+  nh.advertise(button_pub);
   nh.advertise(rightEnc_pub);
   nh.subscribe(cmd);
   nh.subscribe(light);
@@ -108,6 +112,7 @@ void setup() {
   pinMode(IR_1_pin, INPUT);
   pinMode(IR_2_pin, INPUT);
   pinMode(kill_pin, INPUT_PULLUP);
+  pinMode(button_pin, INPUT_PULLUP);
 
   // lights
   setup_lights();
@@ -147,6 +152,13 @@ void loop() {
   ir_stop = check_safe(IR_1, IR_2);
 
   kill = estop||ir_stop;
+
+  //check button
+  if (digitalRead(button_pin)!=button_state){
+    button_state = !button_state;
+    button_change.data = HIGH;
+    button_pub.publish(&button_change);
+  }
 
   is_irstopped.data=ir_stop;
   is_estopped.data=estop;
