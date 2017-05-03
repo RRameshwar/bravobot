@@ -81,8 +81,8 @@ public:
             return false; // false on failure
         }
 
-        // Generates random file index # from 1 to n-1
-        index = (rand() % num_files) + 1;
+        // Cycles through the number of available files
+        index = (index % num_files) + 1;
         // Sending a number as a stream into output string
         std::ostringstream temp_index;
         temp_index << index;
